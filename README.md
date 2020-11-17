@@ -32,10 +32,10 @@ our approach outperforms the existing planners with respect to the number of suc
     ```bash
     python planner_test.py
     ```
-4. Generate Fig. 4 and 5 from the paper
+4. Generate Fig. 5 and 6 from the paper
     ```bash
-    python fig4_plot.py
     python fig5_plot.py
+    python fig6_plot.py
     ```
 5. Tou can train your own model (some configuration variables can be set in ```./config_files/corl.conf```)
     ```bash
