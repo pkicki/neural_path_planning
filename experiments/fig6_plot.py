@@ -133,16 +133,14 @@ def main(map_path, as_path, xd, yd, thd, ax):
 
 
 if __name__ == '__main__':
-    p = "../data/fig5/x/"
-    c = range(14)
+    p = "../data/fig4/x/grid"
+    c = [1, 2, 3, 4]
     map_path = [p + str(x) + ".png" for x in c]
-    as_path = ["./fig5/as_grid_" + str(x) + ".tsv" for x in c]
-    fig, axes = plt.subplots(nrows=2, ncols=7, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
-    #     1    2    3    4     5   6    7    8    9    10   11   12   13   14
-    xs = [14., 19., 14., 16., 19., 19., 18., 15., 14., 18., 5., 19.5, 16., 19.]
-    ys = [9.,  5.5, 9.5,  -2., 0.,  -5., 1.,  9., -3.5,  -1., 1., 0.5,  0.,  0.]
-    ths = [np.pi/2, 0., np.pi/4., -np.pi/6, 0., -np.pi/10., 0., np.pi/3., -np.pi/20., np.pi/10, np.pi/6., np.pi/4., 0., -np.pi/6]
-    #         1     2      3         4      5        6      7      8         9           10     11           12     13  14
+    as_path = ["./fig4/as_left_test_" + str(x) + ".tsv" for x in c]
+    fig, axes = plt.subplots(nrows=1, ncols=4, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
+    xs = [16.5, 20.5, 20.5, 20.5]
+    ys = [9., .6, .6, .6]
+    ths = [np.pi / 2, 0., 0., 0.]
     for i, ax in enumerate(axes.flat):
         ax.tick_params(
             axis='both',
@@ -153,5 +151,7 @@ if __name__ == '__main__':
             labelbottom=False,
             labelleft = False)
         im = main(map_path[i], as_path[i], xs[i], ys[i], ths[i], ax)
+    #fig.colorbar(im, ax=axes.ravel().tolist(), orientation="horizontal")
     fig.colorbar(im, ax=axes.ravel().tolist(), orientation="vertical")
     plt.show()
+

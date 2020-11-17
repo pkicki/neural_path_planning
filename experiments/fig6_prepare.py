@@ -45,7 +45,7 @@ def main():
     # 1. Get datasets
     bs = 128
     model_path = "./trained_model/best-26"
-    ds, ds_size = scenarios.planning_dataset_grid("../data/fig5/")
+    ds, ds_size = scenarios.planning_dataset_grid("../data/fig4/")
 
     ds = ds \
         .batch(bs) \
@@ -78,7 +78,9 @@ def main():
         p = data[1]
         xyth.append(p[:, -1, :3])
 
-    f, g, h = 64, 64, 46
+    #f, g, h = 128, 128, 46
+    f, g, h = 88, 88, 46
+    #f, g, h = 64, 64, 46
     xyth = tf.concat(xyth, axis=0)
     a = tf.reshape(xyth, (f, g, h, 3))
     b = tf.concat(acc, -1)
@@ -106,7 +108,8 @@ def main():
     epoch_accuracy = tf.reduce_mean(tf.concat(acc, -1))
     print(epoch_accuracy)
     uvc = tf.stack([u, v, c], axis=-1).numpy()
-    np.savetxt("as_grid_27.tsv", uvc, delimiter="\t")
+    #np.savetxt("as_grid_23.tsv", uvc, delimiter="\t")
+    np.savetxt("as_left_test_4.tsv", uvc, delimiter="\t")
 
 
 
