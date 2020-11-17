@@ -1,0 +1,3 @@
+*.pyc
+experiments/working_dir/*
+
