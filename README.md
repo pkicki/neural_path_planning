@@ -19,10 +19,10 @@ our approach outperforms the existing planners with respect to the number of suc
 ## How to run
 
 1. Download data:
-- download zip from https://anonfiles.com/72rbk4K2o0 and put in `./`
+- download zip from https://anonfiles.com/72rbk4K2o0 and put in `./data`
 - `unzip data.zip`
 - download zip from https://anonfiles.com/RaJ0h2Kbo8 and put in `./experiments`
-- `unzip trained_model.zip`
+- `unzip trained_models.zip`
 
 2. Go to experiments
     ```bash
@@ -32,14 +32,15 @@ our approach outperforms the existing planners with respect to the number of suc
     ```bash
     python planner_test.py
     ```
-4. Generate Fig. 5 and 6 from the paper
+4. Generate Fig. 8, 9, 11 from the paper
     ```bash
-    python fig5_plot.py
-    python fig6_plot.py
+    python exemplary_paths.py
+    python geometry_change.py
+    python ablation.py
     ```
-5. Tou can train your own model (some configuration variables can be set in ```./config_files/corl.conf```)
+5. Tou can train your own model (some configuration variables can be set in ```./config_files/eaai.conf```)
     ```bash
-    python planner.py --config-file ./config_files/corl.conf
+    python planner.py --config-file ./config_files/eaai.conf
     ```
 
 6. You can check some results for other planners from OMPL library.
@@ -56,7 +57,7 @@ Change the ```time```, ```ALG``` and ```TYPE``` variables to check the accuracy 
     ```bash
     python len_curv.py
     ```
-9. Use ```plot.py``` to generate Fig. 6. (values are obtained with multiple runs of ```aggregate.py``` with different tags).
+9. Use ```plot.py``` to generate Fig. 10. (values are obtained with multiple runs of ```aggregate.py``` with different tags).
     ```bash
     python plot.py
     ```
