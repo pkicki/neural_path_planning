@@ -20,7 +20,7 @@ tf.random.set_seed(444)
 
 
 if __name__ == '__main__':
-    p = "../data/fig5/x/"
+    p = "../data/exemplary_paths/x/"
     model_path = "./trained_models/corl_N_6/best-28"
     c = range(14)
     map_path = [p + str(x) + ".png" for x in c]

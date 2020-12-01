@@ -21,11 +21,11 @@ tf.random.set_seed(444)
 matplotlib.rcParams.update({'font.size': 16})
 
 if __name__ == '__main__':
-    p = "../data/fig4/x/grid"
+    p = "../data/geometry_change/x/grid"
     model_path = "./trained_models/corl_N_6/best-28"
     c = [1, 2, 3, 4]
     map_path = [p + str(x) + ".png" for x in c]
-    as_path = ["../data/fig4/as/as_left_test_" + str(x) + ".tsv" for x in c]
+    as_path = ["../data/geometry_change/as/as_left_test_" + str(x) + ".tsv" for x in c]
     fig, axes = plt.subplots(nrows=1, ncols=4, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
     xs = [16.5, 20.5, 20.5, 20.5]
     ys = [9., 1.2, 1.2, 1.2]
