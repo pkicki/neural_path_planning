@@ -3,4 +3,5 @@
 * `crucial_points.py` - contains the procedure of calculation of the vehicle distinguished points (four corners and guiding point)
 * `distances.py` - contains utilities used for the distances calculations
 * `poly5.py` - contains utilities used for the polynomial parameters and its curvature calculation
+* `test.py` - contains utilities related to some Figures generation
 * `utils.py` - contains other utilities

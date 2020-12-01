@@ -16,18 +16,21 @@ from crucial_points import calculate_car_crucial_points, calculate_car_contour
 from environment import Environment
 
 if __name__ == "__main__":
-    TIME = 10.0
+    TIME = 0.05
+    #TIME = 10.0
     #ALG = "SST"
     #ALG = "INFORRTSTAR"
     #ALG = "BITSTAR"
     #ALG = "ABITSTAR"
     #ALG = "AITSTAR"
-    ALG = "RRTSTAR"
+    #ALG = "RRTSTAR"
     #ALG = "OURS"
-    TYPE = "DUBINS"
-    #TYPE = "SPLINE"
+    ALG = "OURS_N=6"
+    #TYPE = "DUBINS"
+    TYPE = "SPLINE"
     acc = []
-    for fname in glob("../data/all_test/*.results"):
+    #for fname in glob("../data/test/all/*.results"):
+    for fname in glob("/home/piotr/all_test_all/all/*.results"):
         with open(fname, 'r') as fh:
             lines = fh.read().split("\n")[:-1]
             for l in lines:

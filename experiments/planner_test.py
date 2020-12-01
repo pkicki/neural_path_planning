@@ -1,10 +1,7 @@
 import inspect
 import os
 import sys
-from time import time
 
-import numpy as np
-from matplotlib import pyplot as plt
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -13,16 +10,14 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 # add parent (root) to pythonpath
-#from dataset import scenarios
 from dataset import scenarios
-from models.planner import plan_loss, _plot, PlanningNetworkMP
-
-from argparse import ArgumentParser
-
+from models.planner import plan_loss, PlanningNetworkMP
 import tensorflow as tf
+import numpy as np
 from tqdm import tqdm
+from time import time
 
-from utils.execution import ExperimentHandler, LoadFromFile
+from utils.execution import ExperimentHandler
 
 tf.random.set_seed(444)
 
@@ -44,9 +39,11 @@ def _ds(title, ds, ds_size, i, batch_size):
 
 def main():
     bs = 1
-    model_path = "./trained_model/best-26"
-    #ds_path = "../data/test/all"
-    ds_path = "../data/at/"
+    model_path = "./trained_models/corl_N_6/best-28"
+    #model_path = "./trained_models/corl_N_4/best-25"
+    #model_path = "./trained_models/corl_N_2/best-30"
+    #model_path = "./models/corl_N_6_notcurv/best-36"
+    ds_path = "../data/test/all"
     # 1. Get datasets
     ds, ds_size = scenarios.planning_dataset(ds_path)
 
@@ -55,7 +52,9 @@ def main():
         .prefetch(bs)
 
     # 2. Define model
-    model = PlanningNetworkMP(7, (bs, 6))
+    model = PlanningNetworkMP(7, (bs, 6)) # N = 6
+    #model = PlanningNetworkMP(7, (bs, 6)) # N = 4
+    #model = PlanningNetworkMP(7, (bs, 6)) # N = 2
 
     # 3. Optimization
 
@@ -67,7 +66,6 @@ def main():
 
     # 5. Run everything
     acc = []
-    nr = 0
     times = []
     for i, data in _ds('Check', ds, ds_size, 0, bs):
         map, path, ddy0 = data
@@ -78,11 +76,6 @@ def main():
         times.append(end - start)
         model_loss, invalid_loss, overshoot_loss, curvature_loss, non_balanced_loss, _, x_path, y_path, th_path = plan_loss(output, d, last_ddy)
 
-
-        ## 5.1.3 Calculate statistics
-        t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))
-        s = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))
-        u = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
         valid = tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32)
         acc.append(valid)
 

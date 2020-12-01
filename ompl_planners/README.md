@@ -4,5 +4,5 @@
 * `crucial_points.py` - contains the procedure of calculation of the vehicle distinguished points (four corners and guiding point)
 * `dubins.py` - OMPL planners evaluation script
 * `environment.py` - map wrapper
-* `len_curv.py` - calculates Table 1
-* `plot.py` - renders Fig. 6
+* `len_curv.py` - calculates 2nd and 3rd row of the Table 1
+* `plot.py` - renders Fig. 10

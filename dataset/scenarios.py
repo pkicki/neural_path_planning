@@ -56,8 +56,6 @@ def planning_dataset(path):
             s = list(range(len(scenarios[i][1])))
             shuffle(s)
             for k in s:
-                # paths.append(scenarios[i][1][k])
-                # maps.append(scenarios[i][0])
                 yield scenarios[i][0], scenarios[i][1][k], scenarios[i][2][k]
 
     ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32, tf.float32)) \

@@ -51,7 +51,9 @@ def main(args):
         .prefetch(args.batch_size)
 
     # 2. Define model
-    model = PlanningNetworkMP(7, (args.batch_size, 6))
+    model = PlanningNetworkMP(7, (args.batch_size, 6)) # N = 6
+    #model = PlanningNetworkMP(7, (args.batch_size, 6)) # N = 4
+    #model = PlanningNetworkMP(7, (args.batch_size, 6)) # N = 2
 
     # 3. Optimization
 
@@ -76,7 +78,7 @@ def main(args):
             # 5.1.1. Make inference of the model, calculate losses and record gradients
             with tf.GradientTape(persistent=True) as tape:
                 output, last_ddy = model(data, None, training=True)
-                model_loss, invalid_loss, overshoot_loss, curvature_loss, non_balanced_loss, _, x_path, y_path, th_path = plan_loss(output, data, last_ddy)
+                model_loss, invalid_loss, overshoot_loss, curvature_loss, total_curvature_loss, _, x_path, y_path, th_path = plan_loss(output, data, last_ddy)
             grads = tape.gradient(model_loss, model.trainable_variables)
 
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
@@ -93,7 +95,7 @@ def main(args):
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=train_step)
                 tf.summary.scalar('metrics/overshoot_loss', tf.reduce_mean(overshoot_loss), step=train_step)
                 tf.summary.scalar('metrics/curvature_loss', tf.reduce_mean(curvature_loss), step=train_step)
-                tf.summary.scalar('metrics/balance_loss', tf.reduce_mean(non_balanced_loss), step=train_step)
+                tf.summary.scalar('metrics/total_curvature_loss', tf.reduce_mean(total_curvature_loss), step=train_step)
                 tf.summary.scalar('metrics/good_paths', t, step=train_step)
                 tf.summary.scalar('metrics/really_good_paths', s, step=train_step)
                 tf.summary.scalar('metrics/ideal_paths', u, step=train_step)
@@ -115,7 +117,7 @@ def main(args):
         for i, data in _ds('Validation', val_ds, val_size, epoch, args.batch_size):
             # 5.2.1 Make inference of the model for validation and calculate losses
             output, last_ddy = model(data, None, training=True)
-            model_loss, invalid_loss, overshoot_loss, curvature_loss, non_balanced_loss, _, x_path, y_path, th_path = plan_loss(
+            model_loss, invalid_loss, overshoot_loss, curvature_loss, total_curvature_loss, _, x_path, y_path, th_path = plan_loss(
                 output, data, last_ddy)
 
             t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))
@@ -129,7 +131,7 @@ def main(args):
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=val_step)
                 tf.summary.scalar('metrics/overshoot_loss', tf.reduce_mean(overshoot_loss), step=val_step)
                 tf.summary.scalar('metrics/curvature_loss', tf.reduce_mean(curvature_loss), step=val_step)
-                tf.summary.scalar('metrics/balance_loss', tf.reduce_mean(non_balanced_loss), step=val_step)
+                tf.summary.scalar('metrics/total_curvature_loss', tf.reduce_mean(total_curvature_loss), step=val_step)
                 tf.summary.scalar('metrics/good_paths', t, step=val_step)
                 tf.summary.scalar('metrics/really_good_paths', s, step=val_step)
                 tf.summary.scalar('metrics/ideal_paths', u, step=val_step)

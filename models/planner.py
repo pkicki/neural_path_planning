@@ -217,46 +217,21 @@ def plan_loss(plan, data, very_last_ddy):
         m = tf.cos(dth)**3
         last_ddy = plan[:, 3, i] * m
 
-    ### finishing segment
-    #xyL = tf.stack([xL, yL], -1)
-    #xyk = tf.stack([xk, yk], 1)
-    #R = Rot(-thL)
-    #xyk_L = tf.squeeze(R @ (xyk - xyL)[:, :, tf.newaxis], -1)
-    #xyL_k = tf.squeeze(Rot(-thk) @ (xyL - xyk)[:, :, tf.newaxis], -1)
-    #thk_L = (thk - thL)[:, tf.newaxis]
-    #overshoot_loss = tf.nn.relu(-xyk_L[:, 0]) + 1e2 * tf.nn.relu(tf.abs(thk_L[:, 0]) - pi / 2) + tf.nn.relu(xyL_k[:, 0])
-    #x_glob, y_glob, th_glob, curvature_violation, invalid, length, xL, yL, thL, curvature_sum, _ = \
-    #    process_segment(tf.concat([xyk_L, tf.tan(thk_L), very_last_ddy], -1), xL, yL, thL, last_ddy, map, path)
-    #curvature_loss += tf.nn.relu(curvature_violation)
-    #obstacles_loss += tf.nn.relu(invalid)
-    #curvature_accumulation_loss += curvature_sum
-    #length_loss += length
-    #lengths.append(length)
-    #x_path.append(x_glob)
-    #y_path.append(y_glob)
-    #th_path.append(th_glob)
-
     lengths = tf.stack(lengths, -1)
-    non_balanced_loss = tf.reduce_sum(
-        tf.nn.relu(lengths - 1.5 * length_loss[:, tf.newaxis] / tf.cast(tf.shape(lengths)[-1], tf.float32)), -1)
-    non_balanced_loss += tf.reduce_sum(
-        tf.nn.relu(length_loss[:, tf.newaxis] / tf.cast(tf.shape(lengths)[-1], tf.float32) - lengths * 1.5), -1)
 
     dx = tf.nn.relu(tf.abs(xk - xL) - 0.2)
     dy = tf.nn.relu(tf.abs(yk - yL) - 0.2)
     dth = 10 * tf.nn.relu(tf.abs(thk - thL) - 0.05)
     overshoot_loss = dx + dy + dth
 
-    #curvature_loss *= 3.
     # loss for training
     curvature_loss *= 1e1
-    #coarse_loss = curvature_loss + overshoot_loss + non_balanced_loss
-    coarse_loss = tf.nn.relu(curvature_loss) + tf.nn.relu(obstacles_loss) + tf.nn.relu(overshoot_loss)# + tf.nn.relu(non_balanced_loss)
+    coarse_loss = tf.nn.relu(curvature_loss) + tf.nn.relu(obstacles_loss) + tf.nn.relu(overshoot_loss)
     fine_loss = tf.nn.relu(curvature_loss) + tf.nn.relu(obstacles_loss) + tf.nn.relu(overshoot_loss) + 1e-4 * tf.nn.relu(curvature_accumulation_loss)
     loss = tf.where(curvature_loss + obstacles_loss + overshoot_loss == 0, fine_loss, coarse_loss)
     #loss = coarse_loss
 
-    return loss, obstacles_loss, overshoot_loss, curvature_loss, non_balanced_loss, supervised_loss, x_path, y_path, th_path
+    return loss, obstacles_loss, overshoot_loss, curvature_loss, curvature_accumulation_loss, supervised_loss, x_path, y_path, th_path
 
 
 def _plot(x_path, y_path, th_path, data, step, print=False):
@@ -321,23 +296,10 @@ def invalidate(x, y, fi, free_space, path):
     path_cp = tf.stack(path_cp, -2)
     penetration = path_dist_cp(path_cp, crucial_points)
     not_in_collision = if_inside(free_space, car_contour)
-    #not_in_collision = if_inside(free_space, crucial_points)
     not_in_collision = tf.reduce_all(not_in_collision, axis=-1)
     penetration = tf.where(not_in_collision, tf.zeros_like(penetration), penetration)
 
     violation_level = tf.reduce_sum(d[..., 0] * penetration[:, :-1], -1)
-    #violation_level = tf.reduce_mean(d[..., 0] * penetration[:, :-1], -1)
-
-    #v = tf.square(crucial_points - path_cp)
-    #violation_level = tf.reduce_mean(v, axis=(1, 2, 3))
-    #violation_level = tf.reduce_mean(tf.linalg.norm(crucial_points - path_cp, axis=-1), axis=(1, 2)) # fial
-
-
-    #violation_level = tf.reduce_sum(penetration, -1)
-
-    #penetration = dist(free_space, crucial_points)
-    #in_obstacle = tf.reduce_sum(d * penetration[:, :-1], -1)
-    #violation_level = tf.reduce_sum(in_obstacle, -1)
 
     supervised_loss = tf.reduce_sum(penetration, -1)
     return violation_level, supervised_loss

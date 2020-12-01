@@ -26,10 +26,10 @@ if __name__ == "__main__":
     #ALG = "RRTSTAR"
     TYPE = "DUBINS"
     #lengths = {"SST": [], "BITSTAR": [], "OURS": [], "RRTSTAR": [], "ABITSTAR": [], "AITSTAR": []}
-    lengths = {"BITSTAR": [], "OURS": [], "ABITSTAR": [], "AITSTAR": []}
-    curvs = {"BITSTAR": [], "OURS": [], "ABITSTAR": [], "AITSTAR": []}
+    lengths = {"BITSTAR": [], "OURS": [], "OURS_N=6": [], "ABITSTAR": [], "AITSTAR": []}
+    curvs = {"BITSTAR": [], "OURS": [], "OURS_N=6": [], "ABITSTAR": [], "AITSTAR": []}
     #curvs = {"SST": [], "BITSTAR": [], "OURS": [], "RRTSTAR": [], "ABITSTAR": [], "AITSTAR": []}
-    for fname in glob("../data/all_test/*.results"):
+    for fname in glob("../data/test/all/*.results"):
         with open(fname, 'r') as fh:
             lines = fh.read().split("\n")[:-1]
             for l in lines:
@@ -37,13 +37,13 @@ if __name__ == "__main__":
                 alg = larr[0]
                 t = float(larr[2])
                 if alg in lengths.keys():
-                    if t == TIME or alg == "OURS":
+                    if t == TIME:# or alg == "OURS":
                         length = float(larr[4])
                         curv = float(larr[3])
                         lengths[alg].append(length)
                         curvs[alg].append(curv)
     print("LENGTHS:")
-    ref = lengths["OURS"]
+    ref = lengths["OURS_N=6"]
     results = []
     ks = []
     for k, v in lengths.items():
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     print(np.std(results, axis=-1))
 
     print("CURVS:")
-    ref = curvs["OURS"]
+    ref = curvs["OURS_N=6"]
     results = []
     ks = []
     for k, v in curvs.items():

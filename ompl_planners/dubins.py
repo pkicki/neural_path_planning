@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 from math import sin, cos, pi, tan
 from functools import partial
 
-from .constants import Car
-from .crucial_points import calculate_car_crucial_points, calculate_car_contour
-from .environment import Environment
+from constants import Car
+from crucial_points import calculate_car_crucial_points, calculate_car_contour
+from environment import Environment
 
 try:
     from ompl import base as ob
@@ -88,6 +88,7 @@ def plan(p0, pk, fname, time):
     goal[0] = pk[0]
     goal[1] = pk[1]
     goal[2] = pk[2]
+    print(goal)
 
     # set the start and goal states
     ss.setStartAndGoalStates(start, goal, 0.2)
@@ -95,12 +96,12 @@ def plan(p0, pk, fname, time):
 
     si = ss.getSpaceInformation()
     si.setStateValidityCheckingResolution(1. / 128)
-    planner = og.RRTstar(si)
-    planner = og.SST(si)
+    #planner = og.RRTstar(si)
+    #planner = og.SST(si)
     #planner = og.BFMT(si)
     #planner = og.BITstar(si)
     #planner = og.InformedRRTstar(si)
-    #planner = og.ABITstar(si)
+    planner = og.ABITstar(si)
     #planner = og.AITstar(si)
     #planner = og.BKPIECE1(si)
     #planner = og.TRRT(si)
@@ -124,8 +125,13 @@ def plan(p0, pk, fname, time):
         dtheta = np.abs(np.diff(theta))
         x = path[:, 0]
         y = path[:, 1]
-        dist = np.sqrt(x**2 + y**2)
-        dist = np.abs(np.diff(dist))
+        print(x[0], x[-1])
+        print(y[0], y[-1])
+        print(theta[0], theta[-1])
+        dist = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
+        dist = np.sum(dist)
+        print(dist)
+        #dist = np.abs(np.diff(dist))
         k = dtheta / dist
         total_k = np.mean(k)
         #total_dtheta = np.sum(dtheta)
@@ -142,11 +148,11 @@ def plan(p0, pk, fname, time):
         #x, y = transform_to_img(np.array(p0[0]), np.array(p0[1]), env)
         #plt.plot(y, x, 'gx')
         #x, y = transform_to_img(np.array(pk[0]), np.array(pk[1]), env)
-        #plt.plot(y, x, 'rx')
-        #plt.show()
+        plt.plot(y, x, 'rx')
+        plt.show()
     time_limit = time
-    with open(fname.replace(".png", ".cba"), 'a') as fh:
-        fh.write(" ".join(["SST", "DUBINS", str(time_limit), str(total_dtheta), str(length), str(valid)]) + "\n")
+    #with open(fname.replace(".png", ".cba"), 'a') as fh:
+        #fh.write(" ".join(["SST", "DUBINS", str(time_limit), str(total_dtheta), str(length), str(valid)]) + "\n")
         #fh.write(" ".join(["INFORRTSTAR", "DUBINS", str(time_limit), str(total_dtheta), str(length), str(valid)]) + "\n")
         #fh.write(" ".join(["ABITSTAR", "DUBINS", str(time_limit), str(total_dtheta), str(length), str(valid)]) + "\n")
         #fh.write(" ".join(["AITSTAR", "DUBINS", str(time_limit), str(total_dtheta), str(length), str(valid)]) + "\n")
@@ -191,7 +197,7 @@ def plan(p0, pk, fname, time):
 
 if __name__ == "__main__":
     TIME = 3.0
-    for fname in glob("../data/all_test/*.png"):
+    for fname in glob("../data/test/all/*.png"):
         print(fname)
         scn = fname.replace(".png", ".path")
         with open(scn, 'r') as fh:
