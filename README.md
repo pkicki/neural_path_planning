@@ -19,10 +19,10 @@ our approach outperforms the existing planners with respect to the number of suc
 ## How to run
 
 1. Download data:
-- download zip from https://anonfiles.com/72rbk4K2o0 and put in `./data`
-- `unzip data.zip`
-- download zip from https://anonfiles.com/RaJ0h2Kbo8 and put in `./experiments`
-- `unzip trained_models.zip`
+- download zip from https://drive.google.com/file/d/1TACIbwO6L4qTL3lzfvcPc3HDiVmxtd77/view?usp=sharing and put in `./data`
+- `mv data.zip data && cd ./data && unzip data.zip && mv ./data/* . && rm -r data`
+- download zip from https://drive.google.com/file/d/1AHr3RDN_Rdw9h9SVEl0UE16fjGBMQELx/view?usp=sharing and put in `./experiments`
+- `unzip trained_models.zip && mv trained_models ./experiments`
 
 2. Go to experiments
     ```bash
