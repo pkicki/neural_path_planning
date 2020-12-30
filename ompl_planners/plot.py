@@ -17,15 +17,16 @@ OURS = [92.24, 92.24, 92.24, 92.24]
 T = [0.05, 0.1, 1., 10.]
 
 lw = 3.
-plt.plot(T, RRTSTAR, linewidth=lw)
-plt.plot(T, BITSTAR, linewidth=lw)
-plt.plot(T, SST, linewidth=lw)
-plt.plot(T, AITSTAR, linewidth=lw)
-plt.plot(T, ABITSTAR, linewidth=lw)
+plt.plot(T, RRTSTAR, '^', linewidth=lw)
+plt.plot(T, BITSTAR, 'o', linewidth=lw)
+plt.plot(T, SST, '*', linewidth=lw)
+plt.plot(T, AITSTAR, 'x', linewidth=lw)
+plt.plot(T, ABITSTAR, 'P', linewidth=lw)
 plt.plot(T, OURS, '--', linewidth=lw)
 plt.grid(which="both")
-
-plt.legend(["RRT$^*$", "BIT$^*$", "SST", "AIT$^*$", "ABIT$^*$", "ours"], fontsize=12)
+plt.xlabel("Maximal allowed planning time [s]", fontdict={"size": 14})
+plt.ylabel("Accuracy [\%]", fontdict={"size": 14})
+plt.legend(["RRT$^*$", "BIT$^*$", "SST", "AIT$^*$", "ABIT$^*$", "ours"], fontsize=14)
 
 #plt.yscale("log")
 plt.xscale("log")
