@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 class Car:
     ## Kia Rio III hatchback dimensions
     L = 2.5
@@ -5,3 +7,4 @@ class Car:
     rear_axle_to_back = 0.67
     W = 1.72
     max_curvature = 1 / (5.3 - 1.792 / 2)
+    max_beta = tf.atan(max_curvature * L)

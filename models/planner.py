@@ -102,7 +102,7 @@ class PlanningNetworkMP(tf.keras.Model):
 
         self.map_processing = MapFeaturesProcessor(n)
         self.preprocessing_stage = FeatureExtractorLayer(n)
-        self.pts_est = EstimatorLayer(2 + (self.n_pts - 5)*2 + 1)
+        self.pts_est = EstimatorLayer((self.n_pts - 1) * 2)
         self.dim = 25.6
 
     def call(self, data, map_features, training=None):
@@ -117,41 +117,32 @@ class PlanningNetworkMP(tf.keras.Model):
         features = tf.concat([features, map_features], -1)
 
         p = self.pts_est(features, training)
-        # bound the values for x1 and x2
-        x1 = (p[:, 0] + 1.) / 100 + x0 / self.dim + 0.005
-        x2 = (p[:, 1] + 1.) / 100. + x1 + 0.005
-        pts = p[:, 2:-1]
-        pts = tf.reshape(pts, (-1, self.n_pts - 5,  2))
-        # make x lie in (-0.5, 1.5) and y in (-1., 1)
-        xs = pts[..., 0] + 0.5
-        ys = pts[..., 1]
-        pts = tf.stack([xs, ys], axis=-1)
-        # define distance between last and one before last points
-        r = (p[:, -1] + 1.) / 100. + 0.005
-        return self.calculate_control_points(data, x1, x2, pts, r)
+        p = tf.reshape(p, (-1, self.n_pts - 1, 2))
+        z = tf.zeros_like(p[:, :1, 0])
+        o = -tf.ones_like(p[:, :1, 0])
+        oz = tf.stack([o, z], axis=-1)
+        pts = tf.concat([oz, p], axis=-2)
+        return pts
 
-    def calculate_control_points(self, data, x1, x2, pts, r):
-        _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
-        # move data to (0;1) and (-0.5; 0.5) for x and y respectively
-        x0 /= self.dim
-        y0 /= self.dim / 2
-        xk /= self.dim
-        yk /= self.dim / 2
-        kappa0 = 1 / Car.L * tf.tan(beta0)
-        y1 = tf.zeros_like(x1)
-        y2 = 3 * kappa0 * (x1 - x0)**2
-        xkm1 = xk - r * tf.cos(thk)
-        ykm1 = yk - r * tf.sin(thk)
-        xy0 = tf.stack([x0, y0], axis=-1)[:, tf.newaxis]
-        xy1 = tf.stack([x1, y1], axis=-1)[:, tf.newaxis]
-        xy2 = tf.stack([x2, y2], axis=-1)[:, tf.newaxis]
-        xykm1 = tf.stack([xkm1, ykm1], axis=-1)[:, tf.newaxis]
-        xyk = tf.stack([xk, yk], axis=-1)[:, tf.newaxis]
-        cp = tf.concat([xy0, xy1, xy2, pts, xykm1, xyk], axis=1)
-        return cp
+
+class Placeholder(tf.keras.Model):
+
+    def __init__(self, n_pts):
+        super(Placeholder, self).__init__()
+        self.p = tf.Variable(np.random.uniform(-1., 1., (1, n_pts - 1, 2)), trainable=True, dtype=tf.float32)
+
+
+    def call(self, data, map_features, training=None):
+        p = self.p
+        z = tf.zeros_like(p[:, :1, 0])
+        o = -tf.ones_like(p[:, :1, 0])
+        oz = tf.stack([o, z], axis=-1)
+        pts = tf.concat([oz, p], axis=-2)
+        return pts
 
 class Loss:
     def __init__(self, n_pts):
+        self.T = np.linspace(0., 1., 512)
         self.n = 3
         self.m = 3 + n_pts
         self.u = np.pad(np.linspace(0., 1., self.m + 1 - 2 * self.n), self.n, 'edge')
@@ -192,94 +183,76 @@ class Loss:
                 s -= dN(n - 1, t, i + 1) / m2
             return n * s
 
-        T = np.linspace(0., 1., 512)
-        Ns = [np.stack([N(self.n, t, i) for i in range(self.m - self.n)]) for t in T]
+        Ns = [np.stack([N(self.n, t, i) for i in range(self.m - self.n)]) for t in self.T]
         Ns = np.stack(Ns, axis=0)
         Ns[-1, -1] = 1.
-        dNs = [np.stack([dN(self.n, t, i) for i in range(self.m - self.n)]) for t in T]
+        dNs = [np.stack([dN(self.n, t, i) for i in range(self.m - self.n)]) for t in self.T]
         dNs = np.stack(dNs, axis=0)
         dNs[-1, -1] = 21.
         dNs[-1, -2] = -21.
-        ddNs = [np.stack([ddN(self.n, t, i) for i in range(self.m - self.n)]) for t in T]
+        ddNs = [np.stack([ddN(self.n, t, i) for i in range(self.m - self.n)]) for t in self.T]
         ddNs = np.stack(ddNs, axis=0)
         ddNs[-1, -1] = 294.
         ddNs[-1, -2] = -441.
         ddNs[-1, -3] = 147.
         return Ns[np.newaxis], dNs[np.newaxis], ddNs[np.newaxis]
 
-    def auxiliary(self, plan, data):
-        map, path, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
-        a0 = x0
-        a1 = tf.ones_like(x0)
-        a3 = -2 * (xk - x0 - 1.)
-        a2 = 3 * (xk - x0 - 1.)
-        b0 = y0
-        b1 = tf.tan(th0)
-        b3 = tf.tan(thk) + b1 - 2 * (yk - b0)
-        b2 = yk - b1 - b0 - b3
-        t = tf.linspace(0., 1., self.m - self.n)[tf.newaxis]
-        xs = a3[:, tf.newaxis] * t**3 + a2[:, tf.newaxis] * t**2 + a1[:, tf.newaxis] * t + a0[:, tf.newaxis]
-        ys = b3[:, tf.newaxis] * t**3 + b2[:, tf.newaxis] * t**2 + b1[:, tf.newaxis] * t + b0[:, tf.newaxis]
-        #xs0 = x0[:, tf.newaxis] * (1 - t) + xk[:, tf.newaxis] * t
-        #ys0 = y0[:, tf.newaxis] * (1 - t) + yk[:, tf.newaxis] * t
-        xys = tf.stack([xs / self.dim, ys / (self.dim / 2)], axis=-1)
-        dev = tf.abs(xys - plan)
-        loss = tf.reduce_sum(dev, axis=(1, 2))
-
-        x_plan = plan[:, :, 0] * self.dim
-        y_plan = plan[:, :, 1] * (self.dim / 2.)
-        plan_g = tf.stack([x_plan, y_plan], axis=-1)
-        xy = self.N @ plan_g
-        dxy = self.dN @ plan_g
-        ddxy = self.ddN @ plan_g
-        curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / tf.reduce_sum(tf.square(dxy), axis=-1)**(3. / 2)
-        curvature_loss = tf.reduce_mean(tf.nn.relu(tf.abs(curvature) - Car.max_curvature), -1)
-        x_global = xy[..., 0]
-        y_global = xy[..., 1]
-        th_global = tf.atan2(dxy[..., 1], dxy[..., 0])
-        curvature_loss = tf.reduce_mean(tf.nn.relu(tf.abs(curvature) - Car.max_curvature), -1)
-        invalid_loss, supervised_loss = invalidate(x_global, y_global, th_global, map, path)
-
-        #loss = curvature_loss
-
-        loss += 1e-5 * curvature_loss
-        return loss, invalid_loss, curvature_loss, curvature_loss, x_global, y_global, th_global
-
-
-
     def __call__(self, plan, data):
         map, path, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
-        x_plan = plan[:, :, 0] * self.dim
-        y_plan = plan[:, :, 1] * (self.dim / 2.)
-        plan_g = tf.stack([x_plan, y_plan], axis=-1)
-        xy = self.N @ plan_g
-        dxy = self.dN @ plan_g
-        ddxy = self.ddN @ plan_g
-        curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / tf.reduce_sum(tf.square(dxy), axis=-1)**(3. / 2)
-        tcurv = tf.reduce_sum(tf.abs(curvature[:, 1:] - curvature[:, :-1]), axis=-1)
-        #plt.plot(curvature.numpy()[0])
-        #plt.ylim(-5, 5)
-        #plt.show()
-        curvature_loss = tf.reduce_sum(tf.nn.relu(tf.abs(curvature) - Car.max_curvature), -1)
-        x_global = xy[..., 0]
-        y_global = xy[..., 1]
-        th_global = tf.atan2(dxy[..., 1], dxy[..., 0])
-        #for i in range(16):
-        #    plt.subplot(1, 2, 1)
-        #    plt.plot(x_global[i], y_global[i])
-        #    plt.plot(path[i, :, 0], path[i, :, 1])
-        #    plt.xlim(0., self.dim)
-        #    plt.ylim(-self.dim / 2, self.dim / 2)
-        #    plt.subplot(1, 2, 2)
-        #    plt.plot(curvature[i])
-        #    plt.show()
+        v_plan = (plan[:, :, 0] + 1) * 5  # * self.dim
+        z_plan = plan[:, :, 1]  # * (self.dim / 2.)
+        plan_g = tf.stack([v_plan, z_plan], axis=-1)
+        vz = self.N @ plan_g
+
+        plt.subplot(121)
+        plt.plot(self.T, vz[0, ..., 0], label="v")
+        plt.plot(self.T, vz[0, ..., 1], label="zeta")
+        plt.legend()
+
+        state0 = tf.stack([x0, y0, th0, beta0], axis=-1)
+        Tp = 10. / len(self.T)
+        states = [state0]
+        for i in range(self.T.shape[0]):
+            s = states[-1]
+            zeros = tf.zeros_like(s[..., -1])
+            ones = tf.ones_like(s[..., -1])
+            G1 = tf.stack([tf.cos(s[..., -2]), tf.sin(s[..., -2]), tf.tan(s[..., -1]) / Car.L, zeros], axis=-1)
+            G2 = tf.stack([zeros, zeros, zeros, ones], axis=-1)
+            G = tf.stack([G1, G2], axis=-1)
+            ns = s + (Tp * G @ vz[:, i, :, tf.newaxis])[..., 0]
+            x, y, th, beta = tf.split(ns, 4, axis=-1)
+            beta = tf.clip_by_value(beta, -Car.max_beta, Car.max_beta)
+            ns = tf.concat([x, y, th, beta], axis=-1)
+            states.append(ns)
+        states = tf.stack(states, axis=-2)[:, 1:]
+        x_global = states[..., 0]
+        y_global = states[..., 1]
+        th_global = states[..., 2]
+        beta_global = states[..., 3]
+        curvature_loss = tf.reduce_mean(tf.nn.relu(beta_global - Car.max_beta), axis=-1)
+        plt.subplot(122)
+        plt.ylim(-self.dim / 2, self.dim / 2)
+        plt.xlim(0., self.dim)
+        plt.plot(x_global[0], y_global[0], label="xy")
+        plt.legend()
+        #plt.savefig("./last.png")
+        plt.show()
+        plt.clf()
+        dx = tf.nn.relu(tf.abs(xk - x_global[:, -1]) - 0.2)
+        dy = tf.nn.relu(tf.abs(yk - y_global[:, -1]) - 0.2)
+        dth = 10 * tf.nn.relu(tf.abs(thk - th_global[:, -1]) - 0.05)
+        overshoot_loss = dx + dy + dth
+
+        outside_loss_x = tf.nn.relu(x_global - self.dim) + tf.nn.relu(-x_global)
+        outside_loss_y = tf.nn.relu(abs(y_global) - self.dim / 2)
+        outside_loss = tf.reduce_sum(outside_loss_x + outside_loss_y, axis=-1)
         invalid_loss, supervised_loss = invalidate(x_global, y_global, th_global, map, path)
-        #loss = invalid_loss + curvature_loss
-        coarse_loss = invalid_loss + 1e-3 * curvature_loss
-        #fine_loss = invalid_loss + 1e-3 * curvature_loss + 1e-3 * tcurv
-        #loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
+        # loss = invalid_loss + curvature_loss
+        coarse_loss = invalid_loss + 1e-3 * curvature_loss + outside_loss + overshoot_loss
+        # fine_loss = invalid_loss + 1e-3 * curvature_loss + 1e-3 * tcurv
+        # loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
         loss = coarse_loss
-        return loss, invalid_loss, curvature_loss, curvature_loss, x_global, y_global, th_global
+        return loss, invalid_loss, curvature_loss, overshoot_loss, x_global, y_global, th_global
 
 
 def _plot(x_path, y_path, th_path, data, step, cps, print=False):
@@ -295,20 +268,21 @@ def _plot(x_path, y_path, th_path, data, step, cps, print=False):
         u = -p[:, 1] / res + 64
         v = 120 - p[:, 0] / res
         plt.plot(u, v)
-            # plt.plot(p[:, 0] * 10, (10. - p[:, 1]) * 10)
+        # plt.plot(p[:, 0] * 10, (10. - p[:, 1]) * 10)
     # plt.plot(path[0, :, 0] * 10, (10 - path[0, :, 1]) * 10, 'r')
     u = -path[0, :, 1] / res + 64
     v = 120 - path[0, :, 0] / res
     plt.plot(u, v, 'r')
     cps_u = -cps[0, :, 1] * 12.8 / res + 64
     cps_v = 120 - cps[0, :, 0] * 25.6 / res
-    #plt.plot(25.6 * cps[0, :, 0],  12.8 * cps[0, :, 1], 'bx')
-    plt.plot(cps_u,  cps_v, 'bx')
+    # plt.plot(25.6 * cps[0, :, 0],  12.8 * cps[0, :, 1], 'bx')
+    plt.plot(cps_u, cps_v, 'bx')
     if print:
         plt.show()
     else:
         plt.savefig("last_path" + str(step).zfill(6) + ".png")
         plt.clf()
+
 
 def invalidate(x, y, fi, free_space, path):
     """
@@ -332,4 +306,3 @@ def invalidate(x, y, fi, free_space, path):
 
     supervised_loss = tf.reduce_sum(penetration, -1)
     return violation_level, supervised_loss
-

@@ -14,7 +14,7 @@ sys.path.insert(0, parentdir)
 
 # add parent (root) to pythonpath
 from dataset import scenarios
-from models.planner import _plot, PlanningNetworkMP, Loss
+from models.planner import _plot, PlanningNetworkMP, Loss, Placeholder
 
 from argparse import ArgumentParser
 
@@ -53,6 +53,7 @@ def main(args):
     # 2. Define model
     N = 10
     model = PlanningNetworkMP(N)
+    #model = Placeholder(N)
     loss = Loss(N)
 
     # 3. Optimization
@@ -62,14 +63,14 @@ def main(args):
 
     # 4. Restore, Log & Save
     experiment_handler = ExperimentHandler(args.working_path, args.out_name, args.log_interval, model, optimizer)
-    experiment_handler.restore("./working_dir/init/checkpoints/last_n-379")
+    #experiment_handler.restore("./working_dir/init/checkpoints/last_n-379")
     #experiment_handler.restore("./working_dir/init_n/checkpoints/last_n-110")
     #experiment_handler.restore("./working_dir/init/checkpoints/last_n-64")
     #experiment_handler.restore("./working_dir/a/checkpoints/last_n-372")
     #experiment_handler.restore("./working_dir/init2/checkpoints/last_n-234")
     #experiment_handler.restore("./working_dir/init3/checkpoints/last_n-286")
     #experiment_handler.restore("./working_dir/init_poly3/checkpoints/last_n-112")
-    #experiment_handler.restore("./working_dir/bad/checkpoints/last_n-134")
+    experiment_handler.restore("./working_dir/single_nn/checkpoints/last_n-140")
 
     # 5. Run everything
     train_step, val_step = 0, 0
@@ -115,7 +116,7 @@ def main(args):
                 tf.summary.scalar('metrics/ideal_paths', u, step=train_step)
 
             # 5.1.5 Update meta variables
-            if train_step % 10 == 0:
+            if train_step % 1 == 0:
                 _plot(x_path, y_path, th_path, data, train_step, output)
             #_plot(x_path, y_path, th_path, data, train_step, output)
             #if train_step > 100: assert False
@@ -129,7 +130,7 @@ def main(args):
         if epoch_accuracy > best_accuracy:
             experiment_handler.save_best()
             best_accuracy = epoch_accuracy
-        #experiment_handler.save_last()
+        experiment_handler.save_last()
         continue
 
         # 5.2. Validation Loop
