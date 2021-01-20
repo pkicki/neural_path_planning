@@ -1,6 +1,6 @@
 # Learning from Experience for Rapid Generationof Local Car Maneuvers
 
-This repository contains code associated with the paper "Learning from Experience for Rapid Generationof Local Car Maneuvers".
+This repository contains code associated with the paper ["Learning from Experience for Rapid Generationof Local Car Maneuvers"](https://arxiv.org/abs/2012.03707).
 
 ```
 Being able to rapidly respond to the changing scene and traffic situations by generating feasible local paths is of pivotal importance for car autonomy.
