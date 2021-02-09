@@ -275,10 +275,10 @@ class Loss:
         #    plt.show()
         invalid_loss, supervised_loss = invalidate(x_global, y_global, th_global, map, path)
         #loss = invalid_loss + curvature_loss
-        coarse_loss = invalid_loss + 1e-3 * curvature_loss
-        #fine_loss = invalid_loss + 1e-3 * curvature_loss + 1e-3 * tcurv
-        #loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
-        loss = coarse_loss
+        coarse_loss = invalid_loss + 1e-2 * curvature_loss
+        fine_loss = invalid_loss + 1e-2 * curvature_loss + 1e-3 * tcurv
+        loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
+        #loss = coarse_loss
         return loss, invalid_loss, curvature_loss, curvature_loss, x_global, y_global, th_global
 
 

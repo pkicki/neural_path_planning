@@ -41,54 +41,54 @@ def _ds(title, ds, ds_size, i, batch_size):
 #assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
 #config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def main(args):
+N = 10
+BS = 4
+SCENARIO_PATH = "../../neural_path_planning/data/train/all/"
+WORKING_PATH = "./working_dir/"
+OUT_NAME = "wild_one_map_tcurv_faster"
+LOG_INTERVAL = 10
+ETA = 1e-6
+
+def main():
     # 1. Get datasets
-    train_ds, train_size = scenarios.planning_dataset(args.scenario_path)
-    val_ds, val_size = scenarios.planning_dataset(args.scenario_path.replace("train", "val"))
+    train_ds, train_size = scenarios.planning_dataset(SCENARIO_PATH)
+    val_ds, val_size = scenarios.planning_dataset(SCENARIO_PATH.replace("train", "val"))
 
     val_ds = val_ds \
-        .batch(args.batch_size) \
-        .prefetch(args.batch_size)
+        .batch(BS) \
+        .prefetch(BS)
 
     # 2. Define model
-    N = 10
     model = PlanningNetworkMP(N)
     loss = Loss(N)
 
     # 3. Optimization
 
-    optimizer = tf.keras.optimizers.Adam(args.eta)
+    optimizer = tf.keras.optimizers.Adam(ETA)
     l2_reg = tf.keras.regularizers.l2(1e-5)
 
     # 4. Restore, Log & Save
-    experiment_handler = ExperimentHandler(args.working_path, args.out_name, args.log_interval, model, optimizer)
-    experiment_handler.restore("./working_dir/init/checkpoints/last_n-379")
-    #experiment_handler.restore("./working_dir/init_n/checkpoints/last_n-110")
-    #experiment_handler.restore("./working_dir/init/checkpoints/last_n-64")
-    #experiment_handler.restore("./working_dir/a/checkpoints/last_n-372")
-    #experiment_handler.restore("./working_dir/init2/checkpoints/last_n-234")
-    #experiment_handler.restore("./working_dir/init3/checkpoints/last_n-286")
-    #experiment_handler.restore("./working_dir/init_poly3/checkpoints/last_n-112")
-    #experiment_handler.restore("./working_dir/bad/checkpoints/last_n-134")
+    experiment_handler = ExperimentHandler(WORKING_PATH, OUT_NAME, LOG_INTERVAL, model, optimizer)
+    #experiment_handler.restore("./working_dir/init/checkpoints/last_n-26")
+    experiment_handler.restore("./working_dir/init_one_map/checkpoints/last_n-89")
 
     # 5. Run everything
     train_step, val_step = 0, 0
     best_accuracy = 0.0
-    for epoch in range(args.num_epochs):
+    for epoch in range(int(1e7)):
         # workaround for tf problems with shuffling
         dataset_epoch = train_ds.shuffle(train_size)
-        dataset_epoch = dataset_epoch.batch(args.batch_size).prefetch(args.batch_size)
+        dataset_epoch = dataset_epoch.batch(BS).prefetch(BS)
 
         # 5.1. Training Loop
         experiment_handler.log_training()
         acc = []
-        for i, data in _ds('Train', dataset_epoch, train_size, epoch, args.batch_size):
+        for i, data in _ds('Train', dataset_epoch, train_size, epoch, BS):
             # 5.1.1. Make inference of the model, calculate losses and record gradients
             with tf.GradientTape(persistent=True) as tape:
                 output = model(data, None, training=True)
                 #model_loss, invalid_loss, curvature_loss, overshoot_loss, x_path, y_path, th_path = loss.auxiliary(output, data)
                 model_loss, invalid_loss, curvature_loss, overshoot_loss, x_path, y_path, th_path = loss(output, data)
-                #model_loss, invalid_loss, overshoot_loss, curvature_loss, total_curvature_loss, _, x_path, y_path, th_path = plan_loss(output, data)
             grads = tape.gradient(model_loss, model.trainable_variables)
             #for g in grads:
                 #print(tf.reduce_max(tf.abs(g)))
@@ -104,7 +104,7 @@ def main(args):
             acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
 
             # 5.1.4 Save logs for particular interval
-            with tf.summary.record_if(train_step % args.log_interval == 0):
+            with tf.summary.record_if(train_step % LOG_INTERVAL == 0):
                 tf.summary.scalar('metrics/model_loss', tf.reduce_mean(model_loss), step=train_step)
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=train_step)
                 tf.summary.scalar('metrics/curvature_loss', tf.reduce_mean(curvature_loss), step=train_step)
@@ -126,16 +126,17 @@ def main(args):
         with tf.summary.record_if(True):
             tf.summary.scalar('epoch/good_paths', epoch_accuracy, step=epoch)
 
-        if epoch_accuracy > best_accuracy:
-            experiment_handler.save_best()
-            best_accuracy = epoch_accuracy
-        #experiment_handler.save_last()
+        #if epoch_accuracy > best_accuracy:
+        #    experiment_handler.save_best()
+        #    best_accuracy = epoch_accuracy
+        if epoch % 30 == 0:
+            experiment_handler.save_last()
         continue
 
         # 5.2. Validation Loop
         experiment_handler.log_validation()
         acc = []
-        for i, data in _ds('Validation', val_ds, val_size, epoch, args.batch_size):
+        for i, data in _ds('Validation', val_ds, val_size, epoch, BS):
             # 5.2.1 Make inference of the model for validation and calculate losses
             output, last_ddy = model(data, None, training=True)
             model_loss, invalid_loss, overshoot_loss, curvature_loss, total_curvature_loss, _, x_path, y_path, th_path = plan_loss(
@@ -147,7 +148,7 @@ def main(args):
             acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
 
             # 5.2.3 Print logs for particular interval
-            with tf.summary.record_if(val_step % args.log_interval == 0):
+            with tf.summary.record_if(val_step % LOG_INTERVAL == 0):
                 tf.summary.scalar('metrics/model_loss', tf.reduce_mean(model_loss), step=val_step)
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=val_step)
                 tf.summary.scalar('metrics/overshoot_loss', tf.reduce_mean(overshoot_loss), step=val_step)
@@ -176,14 +177,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--config-file', action=LoadFromFile, type=open)
-    parser.add_argument('--scenario-path', type=str)
-    parser.add_argument('--working-path', type=str, default='./working_dir')
-    parser.add_argument('--num-epochs', type=int)
-    parser.add_argument('--batch-size', type=int)
-    parser.add_argument('--log-interval', type=int, default=5)
-    parser.add_argument('--out-name', type=str)
-    parser.add_argument('--eta', type=float, default=5e-4)
-    args, _ = parser.parse_known_args()
-    main(args)
+    main()
