@@ -117,17 +117,18 @@ class PlanningNetworkMP(tf.keras.Model):
         features = tf.concat([features, map_features], -1)
 
         p = self.pts_est(features, training)
+        #p = tf.zeros_like(p)
         # bound the values for x1 and x2
-        x1 = (p[:, 0] + 1.) / 100 + x0 / self.dim + 0.005
-        x2 = (p[:, 1] + 1.) / 100. + x1 + 0.005
+        x1 = (p[:, 0] + 1.) / 50. + x0 / self.dim + 0.005
+        x2 = (p[:, 1] + 1.) / 50. + x1 + 0.005
         pts = p[:, 2:-1]
         pts = tf.reshape(pts, (-1, self.n_pts - 5,  2))
         # make x lie in (-0.5, 1.5) and y in (-1., 1)
-        xs = pts[..., 0] + 0.5
+        xs = pts[..., 0] #+ 1.
         ys = pts[..., 1]
         pts = tf.stack([xs, ys], axis=-1)
         # define distance between last and one before last points
-        r = (p[:, -1] + 1.) / 100. + 0.005
+        r = (p[:, -1] + 1.) / 50. + 0.005
         return self.calculate_control_points(data, x1, x2, pts, r)
 
     def calculate_control_points(self, data, x1, x2, pts, r):
@@ -147,7 +148,21 @@ class PlanningNetworkMP(tf.keras.Model):
         xy2 = tf.stack([x2, y2], axis=-1)[:, tf.newaxis]
         xykm1 = tf.stack([xkm1, ykm1], axis=-1)[:, tf.newaxis]
         xyk = tf.stack([xk, yk], axis=-1)[:, tf.newaxis]
-        cp = tf.concat([xy0, xy1, xy2, pts, xykm1, xyk], axis=1)
+
+        t = np.linspace(0., 1., self.n_pts - 3)[np.newaxis, 1:-1]
+        mid_x = x0[:, np.newaxis] * (1 - t) + xk[:, np.newaxis] * t
+        mid_y = y0[:, np.newaxis] * (1 - t) + yk[:, np.newaxis] * t
+        mid_th = th0[:, np.newaxis] * (1 - t) + thk[:, np.newaxis] * t
+
+        mid_xy = tf.stack([mid_x, mid_y], axis=-1)
+        dx = tf.linalg.norm(mid_xy[:, 0], axis=-1) * 1.0
+        dxy = tf.stack([dx, tf.ones_like(dx)], axis=-1)[:, tf.newaxis]
+        pts = pts * dxy
+        r = Rot(mid_th)
+        a = (r @ pts[..., tf.newaxis])[..., 0]
+        p = a + mid_xy
+
+        cp = tf.concat([xy0, xy1, xy2, p, xykm1, xyk], axis=1)
         return cp
 
 class Loss:
