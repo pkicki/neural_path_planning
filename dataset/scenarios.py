@@ -1,5 +1,5 @@
 import os
-from random import shuffle
+from random import shuffle, random
 
 import numpy as np
 import tensorflow as tf
@@ -68,6 +68,7 @@ def planning_dataset(path):
                     beta = -path[:, 3]
                     b = tf.stack([x, y, th, beta], axis=-1)
                     yield a, b
+                #yield scenarios[i][0], scenarios[i][1][k]
 
     ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32)) \
     .shuffle(buffer_size=int(1 * len(scenarios)), reshuffle_each_iteration=True).map(read_map, num_parallel_calls=8)
