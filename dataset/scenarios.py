@@ -57,17 +57,18 @@ def planning_dataset(path):
             s = list(range(len(scenarios[i][1])))
             shuffle(s)
             for k in s:
-                if random() > 0.5:
-                    yield scenarios[i][0], scenarios[i][1][k]
-                else:
-                    a = scenarios[i][0].replace(".png", "_r.png")
-                    path = scenarios[i][1][k]
-                    x = path[:, 0]
-                    y = -path[:, 1]
-                    th = -path[:, 2]
-                    beta = -path[:, 3]
-                    b = tf.stack([x, y, th, beta], axis=-1)
-                    yield a, b
+                #if random() > 0.5:
+                #    yield scenarios[i][0], scenarios[i][1][k]
+                #else:
+                #    a = scenarios[i][0].replace(".png", "_r.png")
+                #    path = scenarios[i][1][k]
+                #    x = path[:, 0]
+                #    y = -path[:, 1]
+                #    th = -path[:, 2]
+                #    beta = -path[:, 3]
+                #    b = tf.stack([x, y, th, beta], axis=-1)
+                #    yield a, b
+                yield scenarios[i][0], scenarios[i][1][k]
 
     ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32)) \
     .shuffle(buffer_size=int(1 * len(scenarios)), reshuffle_each_iteration=True).map(read_map, num_parallel_calls=8)
