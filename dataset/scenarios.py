@@ -1,5 +1,5 @@
 import os
-from random import shuffle
+from random import shuffle, random
 
 import numpy as np
 import tensorflow as tf
