@@ -86,9 +86,7 @@ def main(args):
             # 5.1.1. Make inference of the model, calculate losses and record gradients
             with tf.GradientTape(persistent=True) as tape:
                 output = model(data, None, training=True)
-                #model_loss, invalid_loss, curvature_loss, overshoot_loss, x_path, y_path, th_path = loss.auxiliary(output, data)
-                model_loss, invalid_loss, curvature_loss, overshoot_loss, x_path, y_path, th_path = loss(output, data)
-                #model_loss, invalid_loss, overshoot_loss, curvature_loss, total_curvature_loss, _, x_path, y_path, th_path = plan_loss(output, data)
+                model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path = loss(output, data)
             grads = tape.gradient(model_loss, model.trainable_variables)
             #for g in grads:
                 #print(tf.reduce_max(tf.abs(g)))
@@ -109,7 +107,7 @@ def main(args):
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=train_step)
                 tf.summary.scalar('metrics/curvature_loss', tf.reduce_mean(curvature_loss), step=train_step)
                 tf.summary.scalar('metrics/overshoot_loss', tf.reduce_mean(overshoot_loss), step=train_step)
-                #tf.summary.scalar('metrics/total_curvature_loss', tf.reduce_mean(total_curvature_loss), step=train_step)
+                tf.summary.scalar('metrics/total_curvature_loss', tf.reduce_mean(total_curvature_loss), step=train_step)
                 tf.summary.scalar('metrics/good_paths', t, step=train_step)
                 tf.summary.scalar('metrics/really_good_paths', s, step=train_step)
                 tf.summary.scalar('metrics/ideal_paths', u, step=train_step)
@@ -126,20 +124,19 @@ def main(args):
         with tf.summary.record_if(True):
             tf.summary.scalar('epoch/good_paths', epoch_accuracy, step=epoch)
 
-        if epoch_accuracy > best_accuracy:
-            experiment_handler.save_best()
-            best_accuracy = epoch_accuracy
+        #if epoch_accuracy > best_accuracy:
+        #    experiment_handler.save_best()
+        #    best_accuracy = epoch_accuracy
         #experiment_handler.save_last()
-        continue
+        #continue
 
         # 5.2. Validation Loop
         experiment_handler.log_validation()
         acc = []
         for i, data in _ds('Validation', val_ds, val_size, epoch, args.batch_size):
             # 5.2.1 Make inference of the model for validation and calculate losses
-            output, last_ddy = model(data, None, training=True)
-            model_loss, invalid_loss, overshoot_loss, curvature_loss, total_curvature_loss, _, x_path, y_path, th_path = plan_loss(
-                output, data, last_ddy)
+            output = model(data, None, training=True)
+            model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path = loss(output, data)
 
             t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))
             s = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))

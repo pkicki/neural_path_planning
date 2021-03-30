@@ -252,7 +252,7 @@ class Loss:
         fine_loss = invalid_loss + 1e-3 * curvature_loss + 1e-3 * tcurv
         loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
         #loss = coarse_loss
-        return loss, invalid_loss, curvature_loss, curvature_loss, x_global, y_global, th_global
+        return loss, invalid_loss, curvature_loss, curvature_loss, tcurv, x_global, y_global, th_global
 
 
 def _plot(x_path, y_path, th_path, data, step, cps, print=False):
