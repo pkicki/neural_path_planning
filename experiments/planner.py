@@ -51,7 +51,7 @@ def main(args):
         .prefetch(args.batch_size)
 
     # 2. Define model
-    N = 10
+    N = 4
     model = PlanningNetworkMP(N)
     loss = Loss(N)
 
@@ -62,7 +62,7 @@ def main(args):
 
     # 4. Restore, Log & Save
     experiment_handler = ExperimentHandler(args.working_path, args.out_name, args.log_interval, model, optimizer)
-    experiment_handler.restore("./working_dir/init/checkpoints/last_n-379")
+    #experiment_handler.restore("./working_dir/init/checkpoints/last_n-379")
     #experiment_handler.restore("./working_dir/init_n/checkpoints/last_n-110")
     #experiment_handler.restore("./working_dir/init/checkpoints/last_n-64")
     #experiment_handler.restore("./working_dir/a/checkpoints/last_n-372")
