@@ -14,7 +14,7 @@ sys.path.insert(0, parentdir)
 
 # add parent (root) to pythonpath
 from dataset import scenarios
-from models.planner import _plot, PlanningNetworkMP, Loss
+from models.planner import _plot, PlanningNetworkMP, Loss, unpack_data
 
 from argparse import ArgumentParser
 
@@ -62,14 +62,8 @@ def main(args):
 
     # 4. Restore, Log & Save
     experiment_handler = ExperimentHandler(args.working_path, args.out_name, args.log_interval, model, optimizer)
-    #experiment_handler.restore("./working_dir/init/checkpoints/last_n-379")
-    #experiment_handler.restore("./working_dir/init_n/checkpoints/last_n-110")
-    #experiment_handler.restore("./working_dir/init/checkpoints/last_n-64")
-    #experiment_handler.restore("./working_dir/a/checkpoints/last_n-372")
-    #experiment_handler.restore("./working_dir/init2/checkpoints/last_n-234")
-    #experiment_handler.restore("./working_dir/init3/checkpoints/last_n-286")
-    #experiment_handler.restore("./working_dir/init_poly3/checkpoints/last_n-112")
-    #experiment_handler.restore("./working_dir/bad/checkpoints/last_n-134")
+    #experiment_handler.restore("./working_dir/eaai_dummy_invalid_normal_fixed/checkpoints/best-12")
+    #experiment_handler.restore("./working_dir/eaai_dummy_invalid_normal_fixed/checkpoints/best-17")
 
     # 5. Run everything
     train_step, val_step = 0, 0
@@ -86,7 +80,7 @@ def main(args):
             # 5.1.1. Make inference of the model, calculate losses and record gradients
             with tf.GradientTape(persistent=True) as tape:
                 output = model(data, None, training=True)
-                model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path = loss(output, data)
+                model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(output, data)
             grads = tape.gradient(model_loss, model.trainable_variables)
             #for g in grads:
                 #print(tf.reduce_max(tf.abs(g)))
@@ -100,6 +94,22 @@ def main(args):
             s = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))
             u = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
             acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
+
+            #idx = tf.where(tf.not_equal(invalid_loss + curvature_loss, 0.0))
+            #for x in idx:
+            #    i = x[0]
+            #    _plot(x_path, y_path, th_path, data, train_step, output, i, True)
+            #    c = curvature[i]
+            #    cdxy = dxy[i]
+            #    cddxy = ddxy[i]
+            #    last_th = th_path[i][-1]
+            #    _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+            #    last_th_gt = thk[i]
+
+            #    print(curvature_loss[i])
+            #    plt.plot(curvature[i])
+            #    plt.show()
+
 
             # 5.1.4 Save logs for particular interval
             with tf.summary.record_if(train_step % args.log_interval == 0):
@@ -136,7 +146,7 @@ def main(args):
         for i, data in _ds('Validation', val_ds, val_size, epoch, args.batch_size):
             # 5.2.1 Make inference of the model for validation and calculate losses
             output = model(data, None, training=True)
-            model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path = loss(output, data)
+            model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(output, data)
 
             t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))
             s = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))

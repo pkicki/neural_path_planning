@@ -98,10 +98,14 @@ class PlanningNetworkMP(tf.keras.Model):
 
         n = 256
         self.depth = depth
+        self.n = 7
+        self.n_pts = 3 + (2 ** depth - 1) + 2
+        self.m = self.n + self.n_pts
 
         self.map_processing = MapFeaturesProcessor(n)
         self.preprocessing_stage = FeatureExtractorLayer(n)
         self.pts_est = EstimatorLayer((2 ** self.depth - 1) * 2)
+        #self.dists_est = EstimatorLayer(3)
         self.dim = 25.6
 
     def call(self, data, map_features, training=None):
@@ -117,6 +121,7 @@ class PlanningNetworkMP(tf.keras.Model):
 
         p = self.pts_est(features, training)
         pts = tf.reshape(p, (-1, 2 ** self.depth - 1, 2))
+        #dists = self.dists_est(features, training)
         return self.calculate_control_points(data, pts)
 
     def calculate_control_points(self, data, pts):
@@ -129,26 +134,27 @@ class PlanningNetworkMP(tf.keras.Model):
         kappa0 = 1 / Car.L * tf.tan(beta0)
         x1 = x0 + 0.01
         x2 = x1 + 0.01
+        #x1 = x0 + 0.015
+        #x2 = x1 + 0.015
         y1 = tf.zeros_like(x1)
-        y2 = 3 * kappa0 * (x1 - x0) ** 2
+        #y2 = 3 * kappa0 * (x1 - x0) ** 2
+        y2 = kappa0 * (x1 - x0)**2 / ((self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
         r = 0.015
+        #r = 0.03
         xkm1 = xk - r * tf.cos(thk)
-        ykm1 = yk - r * tf.sin(thk)
+        ykm1 = yk - r * tf.sin(thk) * 2 # TODO: crazy shit!!!!!
         xy0 = tf.stack([x0, y0], axis=-1)[:, tf.newaxis]
         xy1 = tf.stack([x1, y1], axis=-1)[:, tf.newaxis]
         xy2 = tf.stack([x2, y2], axis=-1)[:, tf.newaxis]
         xykm1 = tf.stack([xkm1, ykm1], axis=-1)[:, tf.newaxis]
         xyk = tf.stack([xk, yk], axis=-1)[:, tf.newaxis]
 
-        lb = xy2
-        ub = xykm1
-
         def middle(lb, ub, pred):
             mid = (lb + ub) / 2
             diff = 0.5 * tf.reduce_max(tf.abs(lb - ub), axis=-1, keepdims=True)
             return mid + pred * diff
 
-        f = [lb, ub]
+        f = [xy2, xykm1]
         p = 0
         for d in range(self.depth):
             i = 0
@@ -163,7 +169,7 @@ class PlanningNetworkMP(tf.keras.Model):
 
 class Loss:
     def __init__(self, depth):
-        self.n = 5
+        self.n = 7
         self.n_pts = 3 + (2 ** depth - 1) + 2
         self.m = self.n + self.n_pts
         self.u = np.pad(np.linspace(0., 1., self.m + 1 - 2 * self.n), self.n, 'edge')
@@ -204,7 +210,7 @@ class Loss:
                 s -= dN(n - 1, t, i + 1) / m2
             return n * s
 
-        T = np.linspace(0., 1., 512)
+        T = np.linspace(0., 1., 1024)
         Ns = [np.stack([N(self.n, t, i) for i in range(self.m - self.n)]) for t in T]
         Ns = np.stack(Ns, axis=0)
         Ns[-1, -1] = 1.
@@ -214,9 +220,9 @@ class Loss:
         dNs[-1, -2] = -(self.m - 2 * self.n) * self.n
         ddNs = [np.stack([ddN(self.n, t, i) for i in range(self.m - self.n)]) for t in T]
         ddNs = np.stack(ddNs, axis=0)
-        ddNs[-1, -1] = 2 * self.n * (self.m - 2 * self.n) ** 2
-        ddNs[-1, -2] = -3 * self.n * (self.m - 2 * self.n) ** 2
-        ddNs[-1, -3] = self.n * (self.m - 2 * self.n) ** 2
+        ddNs[-1, -1] = 2 * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2
+        ddNs[-1, -2] = -3 * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2
+        ddNs[-1, -3] = self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2
         return Ns[np.newaxis], dNs[np.newaxis], ddNs[np.newaxis]
 
     def __call__(self, plan, data):
@@ -227,8 +233,8 @@ class Loss:
         xy = self.N @ plan_g
         dxy = self.dN @ plan_g
         ddxy = self.ddN @ plan_g
-        curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / tf.reduce_sum(tf.square(dxy),
-                                                                                              axis=-1) ** (3. / 2)
+        curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / \
+                    (tf.reduce_sum(tf.square(dxy), axis=-1) + 1e-8) ** (3. / 2)
         tcurv = tf.reduce_sum(tf.abs(curvature[:, 1:] - curvature[:, :-1]), axis=-1)
         # plt.plot(curvature.numpy()[0])
         # plt.ylim(-5, 5)
@@ -237,32 +243,27 @@ class Loss:
         x_global = xy[..., 0]
         y_global = xy[..., 1]
         th_global = tf.atan2(dxy[..., 1], dxy[..., 0])
-        # for i in range(16):
-        #    plt.subplot(1, 2, 1)
-        #    plt.plot(x_global[i], y_global[i])
-        #    plt.plot(path[i, :, 0], path[i, :, 1])
-        #    plt.xlim(0., self.dim)
-        #    plt.ylim(-self.dim / 2, self.dim / 2)
-        #    plt.subplot(1, 2, 2)
-        #    plt.plot(curvature[i])
-        #    plt.show()
+        plan_g_dists = tf.reduce_sum(tf.abs(plan_g[:, 1:] - plan_g[:, :-1]), axis=-1)
+        overal_dist = tf.reduce_sum(plan_g_dists, axis=-1, keepdims=True)
+        dist_part = plan_g_dists / overal_dist
+        dist_loss = tf.reduce_sum(tf.nn.relu(dist_part - 0.1), axis=-1)
         invalid_loss, supervised_loss = invalidate(x_global, y_global, th_global, map, path)
         # loss = invalid_loss + curvature_loss
-        coarse_loss = invalid_loss + 1e-3 * curvature_loss
-        fine_loss = invalid_loss + 1e-3 * curvature_loss + 1e-3 * tcurv
+        coarse_loss = invalid_loss + curvature_loss + dist_loss
+        fine_loss = invalid_loss + curvature_loss + dist_loss + 1e-3 * tcurv
         loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
         #loss = coarse_loss
-        return loss, invalid_loss, curvature_loss, curvature_loss, tcurv, x_global, y_global, th_global
+        return loss, invalid_loss, curvature_loss, dist_loss, tcurv, x_global, y_global, th_global, curvature
 
 
-def _plot(x_path, y_path, th_path, data, step, cps, print=False):
+def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
     res = 0.2
     map, path = data
     path = path[..., :3]
-    plt.imshow(map[0, ..., 0])
-    x = x_path[0]
-    y = y_path[0]
-    th = th_path[0]
+    plt.imshow(map[idx, ..., 0])
+    x = x_path[idx]
+    y = y_path[idx]
+    th = th_path[idx]
     cp = calculate_car_crucial_points(x, y, th)
     for p in cp:
         u = -p[:, 1] / res + 64
@@ -270,11 +271,11 @@ def _plot(x_path, y_path, th_path, data, step, cps, print=False):
         plt.plot(u, v)
         # plt.plot(p[:, 0] * 10, (10. - p[:, 1]) * 10)
     # plt.plot(path[0, :, 0] * 10, (10 - path[0, :, 1]) * 10, 'r')
-    u = -path[0, :, 1] / res + 64
-    v = 120 - path[0, :, 0] / res
+    u = -path[idx, :, 1] / res + 64
+    v = 120 - path[idx, :, 0] / res
     plt.plot(u, v, 'r')
-    cps_u = -cps[0, :, 1] * 12.8 / res + 64
-    cps_v = 120 - cps[0, :, 0] * 25.6 / res
+    cps_u = -cps[idx, :, 1] * 12.8 / res + 64
+    cps_v = 120 - cps[idx, :, 0] * 25.6 / res
     # plt.plot(25.6 * cps[0, :, 0],  12.8 * cps[0, :, 1], 'bx')
     plt.plot(cps_u, cps_v, 'bx')
     if print:
