@@ -105,7 +105,6 @@ class PlanningNetworkMP(tf.keras.Model):
         self.map_processing = MapFeaturesProcessor(n)
         self.preprocessing_stage = FeatureExtractorLayer(n)
         self.pts_est = EstimatorLayer((2 ** self.depth - 1) * 2)
-        #self.dists_est = EstimatorLayer(3)
         self.dim = 25.6
 
     def call(self, data, map_features, training=None):
@@ -121,7 +120,6 @@ class PlanningNetworkMP(tf.keras.Model):
 
         p = self.pts_est(features, training)
         pts = tf.reshape(p, (-1, 2 ** self.depth - 1, 2))
-        #dists = self.dists_est(features, training)
         return self.calculate_control_points(data, pts)
 
     def calculate_control_points(self, data, pts):
@@ -134,13 +132,10 @@ class PlanningNetworkMP(tf.keras.Model):
         kappa0 = 1 / Car.L * tf.tan(beta0)
         x1 = x0 + 0.01
         x2 = x1 + 0.01
-        #x1 = x0 + 0.015
-        #x2 = x1 + 0.015
         y1 = tf.zeros_like(x1)
         #y2 = 3 * kappa0 * (x1 - x0) ** 2
         y2 = kappa0 * (x1 - x0)**2 / ((self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
         r = 0.015
-        #r = 0.03
         xkm1 = xk - r * tf.cos(thk)
         ykm1 = yk - r * tf.sin(thk) * 2 # TODO: crazy shit!!!!!
         xy0 = tf.stack([x0, y0], axis=-1)[:, tf.newaxis]

@@ -11,7 +11,7 @@ sys.path.insert(0, parentdir)
 
 # add parent (root) to pythonpath
 from dataset import scenarios
-from models.planner import plan_loss, PlanningNetworkMP
+from models.planner import PlanningNetworkMP, Loss
 import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
@@ -39,7 +39,7 @@ def _ds(title, ds, ds_size, i, batch_size):
 
 def main():
     bs = 1
-    model_path = "./trained_models/corl_N_6/best-28"
+    model_path = "./trained/best-45"
     #model_path = "./trained_models/corl_N_4/best-25"
     #model_path = "./trained_models/corl_N_2/best-30"
     #model_path = "./models/corl_N_6_notcurv/best-36"
@@ -52,9 +52,9 @@ def main():
         .prefetch(bs)
 
     # 2. Define model
-    model = PlanningNetworkMP(7, (bs, 6)) # N = 6
-    #model = PlanningNetworkMP(7, (bs, 6)) # N = 4
-    #model = PlanningNetworkMP(7, (bs, 6)) # N = 2
+    N = 4
+    model = PlanningNetworkMP(N)
+    loss = Loss(N)
 
     # 3. Optimization
 
@@ -68,15 +68,14 @@ def main():
     acc = []
     times = []
     for i, data in _ds('Check', ds, ds_size, 0, bs):
-        map, path, ddy0 = data
-        d = (map, path, ddy0)
         start = time()
-        output, last_ddy = model(d, None, training=True)
+        output = model(data, None, training=True)
         end = time()
         times.append(end - start)
-        model_loss, invalid_loss, overshoot_loss, curvature_loss, non_balanced_loss, _, x_path, y_path, th_path = plan_loss(output, d, last_ddy)
+        model_loss, invalid_loss, curvature_loss, cp_dists_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(
+            output, data)
 
-        valid = tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32)
+        valid = tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32)
         acc.append(valid)
 
     epoch_accuracy = tf.reduce_mean(tf.concat(acc, -1))
