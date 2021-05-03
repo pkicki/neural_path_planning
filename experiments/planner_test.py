@@ -39,7 +39,8 @@ def _ds(title, ds, ds_size, i, batch_size):
 
 def main():
     bs = 1
-    model_path = "./trained/best-45"
+    #model_path = "./trained/best-45"
+    model_path = "./trained_9d/best-71"
     #model_path = "./trained_models/corl_N_4/best-25"
     #model_path = "./trained_models/corl_N_2/best-30"
     #model_path = "./models/corl_N_6_notcurv/best-36"

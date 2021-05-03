@@ -1,4 +1,4 @@
-from models.planner import PlanningNetworkMP, plan_loss
+from models.planner import PlanningNetworkMP, Loss
 from utils.crucial_points import calculate_car_crucial_points
 import tensorflow as tf
 import numpy as np
@@ -64,10 +64,13 @@ def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
     pk = np.array([xd, yd, thd, 0.], dtype=np.float32)[np.newaxis]
     path = np.stack([p0, pk], axis=1)
     ddy0 = np.array([0.], dtype=np.float32)
-    data = (map, path, ddy0)
+    #data = (map, path, ddy0)
+    data = (map, path)
 
     # 2. Define model
-    model = PlanningNetworkMP(7, (bs, 6))
+    N = 4
+    model = PlanningNetworkMP(N)
+    loss = Loss(N)
 
     # 3. Optimization
 
@@ -77,9 +80,11 @@ def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
     experiment_handler = ExperimentHandler(".", "", 1, model, optimizer)
     experiment_handler.restore(model_path)
 
-    output, last_ddy = model(data, None, training=True)
-    model_loss, invalid_loss, overshoot_loss, curvature_loss, non_balanced_loss, _, x_path, y_path, th_path = plan_loss(
-        output, data, last_ddy)
+    output, _ = model(data, None, training=True)
+    #model_loss, invalid_loss, overshoot_loss, curvature_loss, non_balanced_loss, _, x_path, y_path, th_path = loss(
+    #    output, data)
+    model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(
+        output, data)
 
     _plot(x_path, y_path, th_path, ax)
 

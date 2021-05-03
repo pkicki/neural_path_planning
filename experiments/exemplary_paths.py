@@ -21,9 +21,11 @@ tf.random.set_seed(444)
 
 if __name__ == '__main__':
     p = "../data/exemplary_paths/x/"
-    model_path = "./trained_models/corl_N_6/best-28"
+    #model_path = "./trained_models/corl_N_6/best-28"
+    model_path = "./trained_9d/best-71"
     c = range(14)
     map_path = [p + str(x) + ".png" for x in c]
+    as_path = ["./as_grid_" + str(x) + ".tsv" for x in c]
     fig, axes = plt.subplots(nrows=2, ncols=7, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
     #     1    2    3    4     5   6    7    8    9    10   11   12   13   14
     xs = [13.5, 19., 14., 16., 19., 19., 16., 15., 14., 18., 5., 19.5, 16., 19.]
@@ -39,5 +41,5 @@ if __name__ == '__main__':
             left=False,  # ticks along the top edge are off
             labelbottom=False,
             labelleft = False)
-        im = run_and_plot(model_path, map_path[i], None, xs[i], ys[i], ths[i], ax)
+        im = run_and_plot(model_path, map_path[i], as_path[i], xs[i], ys[i], ths[i], ax)
     plt.show()

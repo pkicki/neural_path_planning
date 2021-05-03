@@ -120,7 +120,59 @@ class PlanningNetworkMP(tf.keras.Model):
 
         p = self.pts_est(features, training)
         pts = tf.reshape(p, (-1, 2 ** self.depth - 1, 2))
-        return self.calculate_control_points(data, pts)
+        return self.calculate_control_points(data, pts), pts
+
+    def calculate_control_points(self, data, pts):
+        _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        # move data to (0;1) and (-0.5; 0.5) for x and y respectively
+        x0 /= self.dim
+        y0 /= self.dim / 2
+        xk /= self.dim
+        yk /= self.dim / 2
+        kappa0 = 1 / Car.L * tf.tan(beta0)
+        x1 = x0 + 0.01
+        x2 = x1 + 0.01
+        y1 = tf.zeros_like(x1)
+        #y2 = 3 * kappa0 * (x1 - x0) ** 2
+        y2 = kappa0 * (x1 - x0)**2 / ((self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
+        r = 0.015
+        xkm1 = xk - r * tf.cos(thk)
+        ykm1 = yk - r * tf.sin(thk) * 2 # TODO: crazy shit!!!!!
+        xy0 = tf.stack([x0, y0], axis=-1)[:, tf.newaxis]
+        xy1 = tf.stack([x1, y1], axis=-1)[:, tf.newaxis]
+        xy2 = tf.stack([x2, y2], axis=-1)[:, tf.newaxis]
+        xykm1 = tf.stack([xkm1, ykm1], axis=-1)[:, tf.newaxis]
+        xyk = tf.stack([xk, yk], axis=-1)[:, tf.newaxis]
+
+        def middle(lb, ub, pred):
+            mid = (lb + ub) / 2
+            diff = 0.5 * tf.reduce_max(tf.abs(lb - ub), axis=-1, keepdims=True)
+            return mid + pred * diff
+
+        f = [xy2, xykm1]
+        p = 0
+        for d in range(self.depth):
+            i = 0
+            while i < len(f) - 1:
+                mid = middle(f[i], f[i + 1], pts[:, p, tf.newaxis])
+                f.insert(i + 1, mid)
+                i += 2
+                p += 1
+        cp = tf.concat([xy0, xy1] + f + [xyk], axis=1)
+        return cp
+
+class DummyPlanner(tf.keras.Model):
+    def __init__(self, first, depth):
+        super(DummyPlanner, self).__init__()
+        self.pts = tf.Variable(first, trainable=True)
+        self.dim = 25.6
+        self.depth = depth
+        self.n = 7
+        self.n_pts = 3 + (2 ** depth - 1) + 2
+        self.m = self.n + self.n_pts
+
+    def call(self, data):
+        return self.calculate_control_points(data, self.pts)
 
     def calculate_control_points(self, data, pts):
         _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
