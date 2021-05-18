@@ -15,9 +15,10 @@ tf.random.set_seed(444)
 
 if __name__ == '__main__':
     p = "../data/ablation/"
+    model_path = "./trained_9d/best-71"
     c = [1, 2, 3, 4, 5]
     map_path = [p + str(x) + ".png" for x in c]
-    fig, axes = plt.subplots(nrows=2, ncols=5, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
+    fig, axes = plt.subplots(nrows=1, ncols=5, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
     xs = [15.5, 20.5, 20.5, 20.5, 13.5]
     ys = [9., 1.2, 7.2, 3.2, -1.2]
     ths = [np.pi / 2, 0., 0., -np.pi / 4, np.pi / 4]
@@ -30,9 +31,5 @@ if __name__ == '__main__':
             left=False,  # ticks along the top edge are off
             labelbottom=False,
             labelleft=False)
-        if i >= len(c):
-            model_path = "./trained_models/corl_N_6_notcurv/best-36"
-        else:
-            model_path = "./trained_models/corl_N_6/best-28"
-        im = run_and_plot(model_path, map_path[i % len(c)], None, xs[i % len(c)], ys[i % len(c)], ths[i % len(c)], ax)
+        im = run_and_plot(model_path, map_path[i], None, xs[i], ys[i], ths[i], ax)
     plt.show()

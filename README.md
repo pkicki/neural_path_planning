@@ -1,12 +1,9 @@
-# Learning from Experience for Rapid Generationof Local Car Maneuvers
+# DEVELOPMENT VERSION OF THE CODE! DO NOT FOLLOW THE INSTRUCTIONS BELOW
 
-This repository contains code associated with the paper "Learning from Experience for Rapid Generationof Local Car Maneuvers".
+This repository contains code associated with the paper "TBD".
 
 ```
-Being able to rapidly respond to the changing scene and traffic situations by generating feasible local paths is of pivotal importance for car autonomy.
-We propose to train a deep neural network to plan feasible, nearly-optimal paths for kinematically constrained vehicles in small constant time. Our model is trained with a novel weakly supervised approach with a gradient-based policy search.
-We demonstrate on real and simulated scenes, and a large set of local planning problems, that
-our approach outperforms the existing planners with respect to the number of successfully completed tasks. While the path generation time is only about 40 ms, the generated paths are smooth and comparable to those obtained from conventional path planners.
+abstract
 ```
 
 ## Dependencies
