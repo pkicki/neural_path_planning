@@ -19,7 +19,7 @@ our approach outperforms the existing planners with respect to the number of suc
 ## How to run
 
 1. Download data:
-- download zip from https://chmura.put.poznan.pl/s/TG1FnLj8BRULexC/download and put in `./data`
+- download zip from https://chmura.put.poznan.pl/s/FH6Edd39nw98y70/download and put in `./data`
 - `mv data.zip data && cd ./data && unzip data.zip && mv ./data/* . && rm -r data`
 - download zip from https://chmura.put.poznan.pl/s/wy1Whhk4qDTnBx0/download and put in `./experiments`
 - `unzip trained_models.zip && mv trained_models ./experiments`
