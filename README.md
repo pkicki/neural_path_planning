@@ -19,9 +19,9 @@ our approach outperforms the existing planners with respect to the number of suc
 ## How to run
 
 1. Download data:
-- download zip from https://drive.google.com/file/d/1TACIbwO6L4qTL3lzfvcPc3HDiVmxtd77/view?usp=sharing and put in `./data`
+- download zip from https://chmura.put.poznan.pl/s/TG1FnLj8BRULexC/download and put in `./data`
 - `mv data.zip data && cd ./data && unzip data.zip && mv ./data/* . && rm -r data`
-- download zip from https://drive.google.com/file/d/1AHr3RDN_Rdw9h9SVEl0UE16fjGBMQELx/view?usp=sharing and put in `./experiments`
+- download zip from https://chmura.put.poznan.pl/s/wy1Whhk4qDTnBx0/download and put in `./experiments`
 - `unzip trained_models.zip && mv trained_models ./experiments`
 
 2. Go to experiments
@@ -32,7 +32,7 @@ our approach outperforms the existing planners with respect to the number of suc
     ```bash
     python planner_test.py
     ```
-4. Generate Fig. 8, 9, 11 from the paper
+4. Generate Fig. 8, 9, 11 from the paper (without heatmaps)
     ```bash
     python exemplary_paths.py
     python geometry_change.py
@@ -41,25 +41,6 @@ our approach outperforms the existing planners with respect to the number of suc
 5. Tou can train your own model (some configuration variables can be set in ```./config_files/eaai.conf```)
     ```bash
     python planner.py --config-file ./config_files/eaai.conf
-    ```
-
-6. You can check some results for other planners from OMPL library.
-Change the ```time```, ```ALG``` and ```TYPE``` variables to check the accuracy of different planner.
-    ```bash
-    cd ../ompl_planners
-    python aggregate.py
-    ```
-6. You can also generate the results by your own (but you need to change the "SSL" and "DUBINS" in the code in order to get different tag for your results).
-    ```bash
-    python dubins.py
-    ```
-8. Lengths and curvature statistics form Table 1. can be generated with the use of ```len_curv.py```.
-    ```bash
-    python len_curv.py
-    ```
-9. Use ```plot.py``` to generate Fig. 10. (values are obtained with multiple runs of ```aggregate.py``` with different tags).
-    ```bash
-    python plot.py
     ```
    
 ### Contributions
