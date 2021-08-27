@@ -38,13 +38,9 @@ def _ds(title, ds, ds_size, i, batch_size):
 #config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def main():
-    bs = 1
-    #model_path = "./trained/best-45"
-    model_path = "./trained_9d/best-71"
-    #model_path = "./trained_models/corl_N_4/best-25"
-    #model_path = "./trained_models/corl_N_2/best-30"
-    #model_path = "./models/corl_N_6_notcurv/best-36"
-    ds_path = "../data/test/all"
+    bs = 128
+    model_path = "./trained_models/best-23"
+    ds_path = "../../neural_path_planning/data/test/all"
     # 1. Get datasets
     ds, ds_size = scenarios.planning_dataset(ds_path)
 
@@ -53,7 +49,7 @@ def main():
         .prefetch(bs)
 
     # 2. Define model
-    N = 4
+    N = 3
     model = PlanningNetworkMP(N)
     loss = Loss(N)
 
@@ -68,21 +64,27 @@ def main():
     # 5. Run everything
     acc = []
     times = []
+    max_curvs = []
     for i, data in _ds('Check', ds, ds_size, 0, bs):
         start = time()
-        output = model(data, None, training=True)
+        output, cps = model(data, None, training=True)
         end = time()
         times.append(end - start)
         model_loss, invalid_loss, curvature_loss, cp_dists_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(
             output, data)
 
+        max_curvs.append(np.max(np.abs(curvature), axis=-1))
         valid = tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32)
         acc.append(valid)
 
     epoch_accuracy = tf.reduce_mean(tf.concat(acc, -1))
+    max_curvs = tf.concat(max_curvs, -1)
     print("ACCURACY:", epoch_accuracy)
     print("MEAN PLANNING TIME:", np.mean(times[20:]))
     print("STD PLANNING TIME:", np.std(times[20:]))
+    print("MEAN MAX CURVATURE:", np.mean(max_curvs))
+    print("STD MAX CURVATURE:", np.std(max_curvs))
+
 
 
 if __name__ == '__main__':

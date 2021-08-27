@@ -68,7 +68,7 @@ def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
     data = (map, path)
 
     # 2. Define model
-    N = 4
+    N = 3
     model = PlanningNetworkMP(N)
     loss = Loss(N)
 
@@ -85,6 +85,7 @@ def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
     #    output, data)
     model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(
         output, data)
+    print(model_loss, invalid_loss, curvature_loss)
 
     _plot(x_path, y_path, th_path, ax)
 

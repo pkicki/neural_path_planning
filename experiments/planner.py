@@ -62,8 +62,6 @@ def main(args):
 
     # 4. Restore, Log & Save
     experiment_handler = ExperimentHandler(args.working_path, args.out_name, args.log_interval, model, optimizer)
-    #experiment_handler.restore("./working_dir/eaai_dummy_invalid_normal_fixed/checkpoints/best-12")
-    #experiment_handler.restore("./working_dir/eaai_dummy_invalid_normal_fixed/checkpoints/best-17")
 
     # 5. Run everything
     train_step, val_step = 0, 0
@@ -79,7 +77,7 @@ def main(args):
         for i, data in _ds('Train', dataset_epoch, train_size, epoch, args.batch_size):
             # 5.1.1. Make inference of the model, calculate losses and record gradients
             with tf.GradientTape(persistent=True) as tape:
-                output = model(data, None, training=True)
+                output, pts = model(data, None, training=True)
                 model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(output, data)
             grads = tape.gradient(model_loss, model.trainable_variables)
             #for g in grads:
@@ -92,35 +90,16 @@ def main(args):
             # 5.1.3 Calculate statistics
             t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))
             s = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))
-            u = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
-            acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
-
-            #idx = tf.where(tf.not_equal(invalid_loss + curvature_loss, 0.0))
-            #for x in idx:
-            #    i = x[0]
-            #    _plot(x_path, y_path, th_path, data, train_step, output, i, True)
-            #    c = curvature[i]
-            #    cdxy = dxy[i]
-            #    cddxy = ddxy[i]
-            #    last_th = th_path[i][-1]
-            #    _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
-            #    last_th_gt = thk[i]
-
-            #    print(curvature_loss[i])
-            #    plt.plot(curvature[i])
-            #    plt.show()
-
+            acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))
 
             # 5.1.4 Save logs for particular interval
             with tf.summary.record_if(train_step % args.log_interval == 0):
                 tf.summary.scalar('metrics/model_loss', tf.reduce_mean(model_loss), step=train_step)
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=train_step)
                 tf.summary.scalar('metrics/curvature_loss', tf.reduce_mean(curvature_loss), step=train_step)
-                tf.summary.scalar('metrics/overshoot_loss', tf.reduce_mean(overshoot_loss), step=train_step)
                 tf.summary.scalar('metrics/total_curvature_loss', tf.reduce_mean(total_curvature_loss), step=train_step)
-                tf.summary.scalar('metrics/good_paths', t, step=train_step)
-                tf.summary.scalar('metrics/really_good_paths', s, step=train_step)
-                tf.summary.scalar('metrics/ideal_paths', u, step=train_step)
+                tf.summary.scalar('metrics/collision_free_paths', t, step=train_step)
+                tf.summary.scalar('metrics/ideal_paths', s, step=train_step)
 
             # 5.1.5 Update meta variables
             if train_step % 100 == 0:
@@ -145,24 +124,21 @@ def main(args):
         acc = []
         for i, data in _ds('Validation', val_ds, val_size, epoch, args.batch_size):
             # 5.2.1 Make inference of the model for validation and calculate losses
-            output = model(data, None, training=True)
+            output, pts = model(data, None, training=False)
             model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(output, data)
 
             t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))
             s = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))
-            u = tf.reduce_mean(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
-            acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss + overshoot_loss, 0.0), tf.float32))
+            acc.append(tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32))
 
             # 5.2.3 Print logs for particular interval
             with tf.summary.record_if(val_step % args.log_interval == 0):
                 tf.summary.scalar('metrics/model_loss', tf.reduce_mean(model_loss), step=val_step)
                 tf.summary.scalar('metrics/invalid_loss', tf.reduce_mean(invalid_loss), step=val_step)
-                tf.summary.scalar('metrics/overshoot_loss', tf.reduce_mean(overshoot_loss), step=val_step)
                 tf.summary.scalar('metrics/curvature_loss', tf.reduce_mean(curvature_loss), step=val_step)
                 tf.summary.scalar('metrics/total_curvature_loss', tf.reduce_mean(total_curvature_loss), step=val_step)
-                tf.summary.scalar('metrics/good_paths', t, step=val_step)
-                tf.summary.scalar('metrics/really_good_paths', s, step=val_step)
-                tf.summary.scalar('metrics/ideal_paths', u, step=val_step)
+                tf.summary.scalar('metrics/collision_free_paths', t, step=val_step)
+                tf.summary.scalar('metrics/ideal_paths', s, step=val_step)
 
             # 5.2.4 Update meta variables
             val_step += 1

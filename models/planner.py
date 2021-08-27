@@ -144,10 +144,19 @@ class PlanningNetworkMP(tf.keras.Model):
         xykm1 = tf.stack([xkm1, ykm1], axis=-1)[:, tf.newaxis]
         xyk = tf.stack([xk, yk], axis=-1)[:, tf.newaxis]
 
+        #def middle(lb, ub, pred):
+        #    v = ub - lb
+        #    v_p = tf.stack([-v[:, :, 1], v[:, :, 0]], axis=-1)
+        #    p1 = (pred[..., :1] + 1) / 2
+        #    p2 = pred[..., 1:]
+        #    new = lb + v * p1 + v_p * p2
+        #    return new
+
         def middle(lb, ub, pred):
             mid = (lb + ub) / 2
             diff = 0.5 * tf.reduce_max(tf.abs(lb - ub), axis=-1, keepdims=True)
-            return mid + pred * diff
+            old = mid + pred * diff
+            return old
 
         f = [xy2, xykm1]
         p = 0
@@ -296,8 +305,8 @@ class Loss:
         dist_loss = tf.reduce_sum(tf.nn.relu(dist_part - 0.1), axis=-1)
         invalid_loss, supervised_loss = invalidate(x_global, y_global, th_global, map, path)
         # loss = invalid_loss + curvature_loss
-        coarse_loss = invalid_loss + curvature_loss + dist_loss
-        fine_loss = invalid_loss + curvature_loss + dist_loss + 1e-3 * tcurv
+        coarse_loss = invalid_loss + curvature_loss
+        fine_loss = invalid_loss + curvature_loss + 1e-1 * tcurv
         loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
         #loss = coarse_loss
         return loss, invalid_loss, curvature_loss, dist_loss, tcurv, x_global, y_global, th_global, curvature
@@ -325,6 +334,9 @@ def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
     cps_v = 120 - cps[idx, :, 0] * 25.6 / res
     # plt.plot(25.6 * cps[0, :, 0],  12.8 * cps[0, :, 1], 'bx')
     plt.plot(cps_u, cps_v, 'bx')
+    ax = plt.gca()
+    for i in range(len(cps_u)):
+        ax.annotate(str(i), (cps_u[i], cps_v[i]))
     if print:
         plt.show()
     else:

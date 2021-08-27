@@ -1,6 +1,6 @@
-# DEVELOPMENT VERSION OF THE CODE! DO NOT FOLLOW THE INSTRUCTIONS BELOW
+# Speeding up DNN-based planning of local maneuvers via efficient B-spline path construction
 
-This repository contains code associated with the paper "TBD".
+This repository contains code associated with the paper "Speeding up DNN-based planning of local maneuvers via efficient B-spline path construction".
 
 ```
 abstract
@@ -9,16 +9,15 @@ abstract
 ## Dependencies
 
 * Tensorflow 2.1+ (Eager Execution)
-* OMPL
 * NumPy
 * Matplotlib
 
 ## How to run
 
 1. Download data:
-- download zip from https://drive.google.com/file/d/1TACIbwO6L4qTL3lzfvcPc3HDiVmxtd77/view?usp=sharing and put in `./data`
+- download zip from https://chmura.put.poznan.pl/s/FH6Edd39nw98y70/download and put in `./data`
 - `mv data.zip data && cd ./data && unzip data.zip && mv ./data/* . && rm -r data`
-- download zip from https://drive.google.com/file/d/1AHr3RDN_Rdw9h9SVEl0UE16fjGBMQELx/view?usp=sharing and put in `./experiments`
+- download zip from https://chmura.put.poznan.pl/s/KdmYPDjTnnCYiDe and put in `./experiments`
 - `unzip trained_models.zip && mv trained_models ./experiments`
 
 2. Go to experiments
@@ -29,41 +28,11 @@ abstract
     ```bash
     python planner_test.py
     ```
-4. Generate Fig. 8, 9, 11 from the paper
+4. Generate Fig. 4 from the paper
     ```bash
     python exemplary_paths.py
-    python geometry_change.py
-    python ablation.py
     ```
 5. Tou can train your own model (some configuration variables can be set in ```./config_files/eaai.conf```)
     ```bash
-    python planner.py --config-file ./config_files/eaai.conf
+    python planner.py --config-file ./config_files/clamp.conf
     ```
-
-6. You can check some results for other planners from OMPL library.
-Change the ```time```, ```ALG``` and ```TYPE``` variables to check the accuracy of different planner.
-    ```bash
-    cd ../ompl_planners
-    python aggregate.py
-    ```
-6. You can also generate the results by your own (but you need to change the "SSL" and "DUBINS" in the code in order to get different tag for your results).
-    ```bash
-    python dubins.py
-    ```
-8. Lengths and curvature statistics form Table 1. can be generated with the use of ```len_curv.py```.
-    ```bash
-    python len_curv.py
-    ```
-9. Use ```plot.py``` to generate Fig. 10. (values are obtained with multiple runs of ```aggregate.py``` with different tags).
-    ```bash
-    python plot.py
-    ```
-   
-### Contributions
-* `An approach for rapid path generation under differential constraints by approximating the oracle planning function by a neural network`
-    - neural network architecture is in class `PlanningNetworkMP` in `./models/planner.py` 
-    - training pipeline is in `./experiments/planner.py` 
-* `A novel differentiable loss function which penalizes infeasible paths, because they violate constraints imposed either by the vehicle kinematics or the environment map.`
-    - function `plan_loss` in `./models/planner.py`
-* `Dataset of urban environment local maps (based on real sensory data) and motion planning scenarios that can be used for training and evaluation of local planners for self-driving cars.`
-    - data in `./data/`

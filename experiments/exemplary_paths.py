@@ -21,16 +21,15 @@ tf.random.set_seed(444)
 
 if __name__ == '__main__':
     p = "../data/exemplary_paths/x/"
-    #model_path = "./trained_models/corl_N_6/best-28"
-    model_path = "./trained_9d/best-71"
+    model_path = "./trained_models/best-23"
     c = range(14)
     map_path = [p + str(x) + ".png" for x in c]
-    as_path = ["./as_grid_" + str(x) + ".tsv" for x in c]
+    as_path = ["accessible_sets/as_grid_" + str(x) + ".tsv" for x in c]
     fig, axes = plt.subplots(nrows=2, ncols=7, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
-    #     1    2    3    4     5   6    7    8    9    10   11   12   13   14
-    xs = [13.5, 19., 14., 16., 19., 19., 16., 15., 14., 18., 5., 19.5, 16., 19.]
-    ys = [9.,  5.5, 9.5,  -2., 2.,  -5., 3.,  9., -3.5,  -1., 1., 0.5,  -3.,  0.]
-    ths = [np.pi/2, 0., np.pi/4., -np.pi/6, 0., -np.pi/10., -np.pi/5, np.pi/3., -np.pi/20., np.pi/10, np.pi/6., np.pi/4., 0., -np.pi/6]
+    #     1    2    3    4     5   6    7    8     9    10   11   12   13   14
+    xs = [13.5, 19., 14., 16., 19., 19., 16., 15., 14., 15., 5., 19.5, 16., 15.5]
+    ys = [9.,  5.5, 9.5,  -2., 1.,  -5., 3.,  9., -3.5,  1., 1., 0.5,  -3.,  1.5]
+    ths = [np.pi/2, 0., np.pi/3.3, -np.pi/6, 0., -np.pi/10., -np.pi/5, np.pi/3., -np.pi/20., np.pi/4, np.pi/6., np.pi/4., 0., -np.pi/3]
     #         1     2      3         4      5        6      7            8         9           10     11           12     13     14
     for i, ax in enumerate(axes.flat):
         ax.tick_params(
@@ -42,4 +41,7 @@ if __name__ == '__main__':
             labelbottom=False,
             labelleft = False)
         im = run_and_plot(model_path, map_path[i], as_path[i], xs[i], ys[i], ths[i], ax)
+    #ax = plt.gca()
+    #i = 2
+    #im = run_and_plot(model_path, map_path[i], as_path[i], xs[i], ys[i], ths[i], ax)
     plt.show()
