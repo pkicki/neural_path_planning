@@ -85,7 +85,7 @@ def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
     #    output, data)
     model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(
         output, data)
-    print(model_loss, invalid_loss, curvature_loss)
+    print(invalid_loss+curvature_loss, invalid_loss, curvature_loss)
 
     _plot(x_path, y_path, th_path, ax)
 
@@ -96,3 +96,4 @@ def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
         c = 181. * c
         return ax.scatter(u, v, c=c, s=1.5 * np.ones_like(c),
                           zorder=3, cmap='hot_r')
+    return x_path, y_path, th_path
