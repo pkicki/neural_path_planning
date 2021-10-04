@@ -38,8 +38,12 @@ def _ds(title, ds, ds_size, i, batch_size):
 #config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def main():
-    bs = 128
-    model_path = "./trained_models/best-23"
+    bs = 1#28
+    #model_path = "./trained_models/best-23"
+    #model_path = "./trained_models/N=2_5e-4_nodistloss/best-16"
+    model_path = "./trained_models/N=3_5e-4_nodistloss/best-23"
+    #model_path = "./trained_models/N=4_5e-4_nodistloss/best-32"
+    #model_path = "./trained_models/N=5_5e-4_nodistloss/best-29"
     ds_path = "../../neural_path_planning/data/test/all"
     # 1. Get datasets
     ds, ds_size = scenarios.planning_dataset(ds_path)
@@ -67,7 +71,7 @@ def main():
     max_curvs = []
     for i, data in _ds('Check', ds, ds_size, 0, bs):
         start = time()
-        output, cps = model(data, None, training=True)
+        output, cps = model(data, None, training=False)
         end = time()
         times.append(end - start)
         model_loss, invalid_loss, curvature_loss, cp_dists_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(
