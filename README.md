@@ -35,15 +35,15 @@ procedure outperforms state-of-the-art planners by a large margin in the conside
     ```bash
     cd experiments
     ```
-3. Run pretrained planner on the test set
+3. Run pretrained planner on the test set (inside the script you can choose different models, what allows to generate Fig. 4)
     ```bash
     python planner_test.py
     ```
-4. Generate Fig. 4 from the paper
+4. Generate Fig. 6 from the paper
     ```bash
     python exemplary_paths.py
     ```
-5. Tou can train your own model (some configuration variables can be set in ```./config_files/eaai.conf```)
+5. Tou can train your own model (some configuration variables can be set in ```./config_files/icra.conf```)
     ```bash
-    python planner.py --config-file ./config_files/clamp.conf
+    python planner.py --config-file ./config_files/icra.conf
     ```
