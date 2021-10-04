@@ -51,7 +51,7 @@ def main(args):
         .prefetch(args.batch_size)
 
     # 2. Define model
-    N = 4
+    N = 3
     model = PlanningNetworkMP(N)
     loss = Loss(N)
 
