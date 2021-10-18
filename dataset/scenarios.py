@@ -12,6 +12,7 @@ def planning_dataset(path):
     def read_scn(scn_path):
         scn_path = os.path.join(path, scn_path)
         map_path = scn_path[:-4] + "png"
+        sdf_path = scn_path[:-5] + "_sdf_free.png"
         # map = plt.imread(scn_path)[..., :1]
         paths = []
         # print(res_path)
@@ -35,26 +36,29 @@ def planning_dataset(path):
                     paths.append(xythk)
         if paths:
             paths = np.stack(paths, 0).astype(np.float32)
-        return map_path, paths
+        return map_path, sdf_path, paths
 
-    def read_map(map_path, path):
+    def read_map(map_path, sdf_path, path):
         img = tf.io.read_file(map_path)
         img = tf.io.decode_png(img, channels=1)
         img = tf.image.convert_image_dtype(img, tf.float32)
         free = img > 0.5
         obs = img < 0.5
         img = tf.cast(tf.concat([free, obs], axis=-1), tf.float32)
-        return img, path
+        sdf = tf.io.read_file(sdf_path)
+        sdf = tf.io.decode_png(sdf, channels=1)
+        sdf = tf.image.convert_image_dtype(sdf, tf.float32)
+        return img, sdf, path
 
     scenarios = [read_scn(f) for f in sorted(os.listdir(path)) if f.endswith(".path")]
-    scenarios = [(scn_path, paths) for scn_path, paths in scenarios if len(paths)]
+    scenarios = [(map_path, sdf_path, paths) for map_path, sdf_path, paths in scenarios if len(paths)]
 
     g = list(range(len(scenarios)))
     shuffle(g)
 
     def gen():
         for i in g:
-            s = list(range(len(scenarios[i][1])))
+            s = list(range(len(scenarios[i][2])))
             shuffle(s)
             for k in s:
                 # if random() > 0.5:
@@ -68,9 +72,9 @@ def planning_dataset(path):
                 #    beta = -path[:, 3]
                 #    b = tf.stack([x, y, th, beta], axis=-1)
                 #    yield a, b
-                yield scenarios[i][0], scenarios[i][1][k]
+                yield scenarios[i][0], scenarios[i][1], scenarios[i][2][k]
 
-    ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32)) \
+    ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.string, tf.float32)) \
         .shuffle(buffer_size=int(1 * len(scenarios)), reshuffle_each_iteration=True).map(read_map, num_parallel_calls=8)
 
     return ds, len(scenarios)
