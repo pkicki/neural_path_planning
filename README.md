@@ -19,6 +19,7 @@ procedure outperforms state-of-the-art planners by a large margin in the conside
 
 ## Dependencies
 
+* Python 3.6+
 * Tensorflow 2.1+ (Eager Execution)
 * NumPy
 * Matplotlib
