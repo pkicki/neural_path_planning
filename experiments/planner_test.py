@@ -39,11 +39,10 @@ def _ds(title, ds, ds_size, i, batch_size):
 
 def main():
     bs = 1#28
-    #model_path = "./trained_models/best-23"
-    #model_path = "./trained_models/N=2_5e-4_nodistloss/best-16"
-    model_path = "./trained_models/N=3_5e-4_nodistloss/best-23"
-    #model_path = "./trained_models/N=4_5e-4_nodistloss/best-32"
-    #model_path = "./trained_models/N=5_5e-4_nodistloss/best-29"
+    #model_path = "./trained_models/N=2_5e-4/best-16"
+    model_path = "./trained_models/N=3_5e-4/best-23"
+    #model_path = "./trained_models/N=4_5e-4/best-32"
+    #model_path = "./trained_models/N=5_5e-4/best-29"
     ds_path = "../../neural_path_planning/data/test/all"
     # 1. Get datasets
     ds, ds_size = scenarios.planning_dataset(ds_path)
