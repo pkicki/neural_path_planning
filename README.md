@@ -30,7 +30,7 @@ procedure outperforms state-of-the-art planners by a large margin in the conside
 1. Download data:
 - download zip from https://chmura.put.poznan.pl/s/FH6Edd39nw98y70/download and put in `./data`
 - `mv data.zip data && cd ./data && unzip data.zip && mv ./data/* . && rm -r data`
-- download zip from https://chmura.put.poznan.pl/s/KdmYPDjTnnCYiDe and put in `./experiments`
+- download zip from https://chmura.put.poznan.pl/s/1c0Vy6Vx0dvm5O9/download and put in `./experiments`
 - `unzip trained_models.zip && mv trained_models ./experiments`
 
 2. Go to experiments
