@@ -75,6 +75,12 @@ class MapFeaturesProcessor(tf.keras.Model):
 
     def call(self, x, training=None):
         bs = x.shape[0]
+        # CoordConv
+        #x_indices, y_indices = tf.meshgrid(2 * (tf.range(x.shape[1]) / (x.shape[1] - 1)) - 1,
+        #                                     2 * (tf.range(x.shape[2]) / (x.shape[2] - 1)) - 1)
+        #xy_indices = tf.tile(tf.stack([x_indices , y_indices], axis=-1)[tf.newaxis], (bs, 1, 1, 1))
+        #xy_indices = tf.cast(xy_indices, tf.float32)
+        #x = tf.concat([x, xy_indices], axis=-1)
         for layer in self.features:
             x = layer(x)
         x = tf.reshape(x, (bs, -1))
@@ -84,12 +90,12 @@ class MapFeaturesProcessor(tf.keras.Model):
 
 
 def unpack_data(data):
-    map, path = data
+    map, path, task_map = data
     p0 = path[:, 0]
     x0, y0, th0, beta0 = tf.unstack(p0, axis=-1)
     pk = path[:, -1]
     xk, yk, thk, betak = tf.unstack(pk, axis=-1)
-    return map, path, x0, y0, th0, beta0, xk, yk, thk, betak
+    return map, path, task_map, x0, y0, th0, beta0, xk, yk, thk, betak
 
 
 class PlanningNetworkMP(tf.keras.Model):
@@ -108,8 +114,9 @@ class PlanningNetworkMP(tf.keras.Model):
         self.dim = 25.6
 
     def call(self, data, map_features, training=None):
-        map, path, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        map, path, task_map, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
 
+        map = tf.concat([map, task_map[..., tf.newaxis]], axis=-1)
         map_features = self.map_processing(map)
 
         inputs = tf.stack([x0 / self.dim, y0 / (self.dim / 2), np.sin(th0), np.cos(th0), beta0,
@@ -123,7 +130,7 @@ class PlanningNetworkMP(tf.keras.Model):
         return self.calculate_control_points(data, pts), pts
 
     def calculate_control_points(self, data, pts):
-        _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        _, _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
         # move data to (0;1) and (-0.5; 0.5) for x and y respectively
         x0 /= self.dim
         y0 /= self.dim / 2
@@ -184,7 +191,7 @@ class DummyPlanner(tf.keras.Model):
         return self.calculate_control_points(data, self.pts)
 
     def calculate_control_points(self, data, pts):
-        _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        _, _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
         # move data to (0;1) and (-0.5; 0.5) for x and y respectively
         x0 /= self.dim
         y0 /= self.dim / 2
@@ -282,7 +289,7 @@ class Loss:
         return Ns[np.newaxis], dNs[np.newaxis], ddNs[np.newaxis]
 
     def __call__(self, plan, data):
-        map, path, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        map, path, task_map, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
         x_plan = plan[:, :, 0] * self.dim
         y_plan = plan[:, :, 1] * (self.dim / 2.)
         plan_g = tf.stack([x_plan, y_plan], axis=-1)
@@ -314,7 +321,7 @@ class Loss:
 
 def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
     res = 0.2
-    map, path = data
+    map, path, _ = data
     path = path[..., :3]
     plt.imshow(map[idx, ..., 0])
     x = x_path[idx]

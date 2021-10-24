@@ -1,19 +1,17 @@
 import os
 from random import shuffle, random
-
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
+from skimage.draw import polygon
+from utils.crucial_points import calculate_car_crucial_points
 
-
-# tf.enable_eager_execution()
 
 def planning_dataset(path):
     def read_scn(scn_path):
         scn_path = os.path.join(path, scn_path)
         map_path = scn_path[:-4] + "png"
-        # map = plt.imread(scn_path)[..., :1]
         paths = []
+        task_imgs = []
         # print(res_path)
         with open(scn_path, 'r') as fh:
             lines = fh.read().split('\n')[:-1]
@@ -35,19 +33,41 @@ def planning_dataset(path):
                     paths.append(xythk)
         if paths:
             paths = np.stack(paths, 0).astype(np.float32)
-        return map_path, paths
+        for p in paths:
+            img = np.zeros((128, 128), dtype=np.float32)
+            xyth0 = p[0, :3]
+            xythk = p[-1, :3]
+            x0 = xyth0[0]
+            y0 = xyth0[1]
+            xk = xythk[0]
+            yk = xythk[1]
+            dist = np.sqrt((x0 - xk) ** 2 + (y0 - yk) ** 2)
+            t = np.linspace(0., 1., int(dist / 0.2))[:, np.newaxis]
+            xyths = xyth0[np.newaxis] * (1 - t) + xythk[np.newaxis] * t
+            x, y, th = np.split(xyths, xyths.shape[-1], axis=-1)
+            cp = calculate_car_crucial_points(x, y, th)
+            contour = np.concatenate([cp[1], cp[3], cp[4], cp[2], cp[1]], axis=1)
+            res = 0.2
+            for c in contour:
+                u = 120 - c[:, 0] / res
+                v = 64 - c[:, 1] / res
+                rr, cc = polygon(u, v, img.shape)
+                img[rr, cc] = 1.
+            task_imgs.append(img)
 
-    def read_map(map_path, path):
+        return map_path, paths, task_imgs
+
+    def read_map(map_path, path, task_imgs):
         img = tf.io.read_file(map_path)
         img = tf.io.decode_png(img, channels=1)
         img = tf.image.convert_image_dtype(img, tf.float32)
         free = img > 0.5
         obs = img < 0.5
         img = tf.cast(tf.concat([free, obs], axis=-1), tf.float32)
-        return img, path
+        return img, path, task_imgs
 
     scenarios = [read_scn(f) for f in sorted(os.listdir(path)) if f.endswith(".path")]
-    scenarios = [(scn_path, paths) for scn_path, paths in scenarios if len(paths)]
+    scenarios = [(scn_path, paths, task_imgs) for scn_path, paths, task_imgs in scenarios if len(paths)]
 
     g = list(range(len(scenarios)))
     shuffle(g)
@@ -68,9 +88,9 @@ def planning_dataset(path):
                 #    beta = -path[:, 3]
                 #    b = tf.stack([x, y, th, beta], axis=-1)
                 #    yield a, b
-                yield scenarios[i][0], scenarios[i][1][k]
+                yield scenarios[i][0], scenarios[i][1][k], scenarios[i][2][k]
 
-    ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32)) \
+    ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32, tf.float32)) \
         .shuffle(buffer_size=int(1 * len(scenarios)), reshuffle_each_iteration=True).map(read_map, num_parallel_calls=8)
 
     return ds, len(scenarios)
