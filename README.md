@@ -15,6 +15,7 @@ our approach outperforms the existing planners with respect to the number of suc
 * OMPL
 * NumPy
 * Matplotlib
+* tqdm
 
 ## How to run
 
