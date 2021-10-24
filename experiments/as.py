@@ -45,10 +45,7 @@ def main():
     # 1. Get datasets
     #bs = 128
     bs = 128 + 64
-    #bs = 256
-    #model_path = "./trained_9d/best-71"
-    #model_path = "./trained_models/N=3_5e-4_monster/best-25"
-    model_path = "./trained_models/N=3_5e-4_nodistloss/best-23"
+    model_path = "./trained_models/N=3_5e-4/best-23"
     #a = np.loadtxt("/home/piotr/corl/grid.path").astype(np.float32)
     #p0 = a[:, 1:5]
     #pk = a[:, 5:]
