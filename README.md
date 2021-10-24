@@ -11,6 +11,7 @@ our approach outperforms the existing planners with respect to the number of suc
 
 ## Dependencies
 
+* Python 3.6+
 * Tensorflow 2.1+ (Eager Execution)
 * OMPL
 * NumPy
