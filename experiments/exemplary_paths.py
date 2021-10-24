@@ -21,7 +21,7 @@ tf.random.set_seed(444)
 
 if __name__ == '__main__':
     p = "../data/exemplary_paths/x/"
-    model_path = "./trained_models/best-23"
+    model_path = "./trained_models/N=3_5e-4/best-23"
     c = range(14)
     map_path = [p + str(x) + ".png" for x in c]
     as_path = ["accessible_sets/as_grid_" + str(x) + ".tsv" for x in c]
