@@ -109,13 +109,13 @@ class MapFeaturesProcessor(tf.keras.Model):
         return x
 
 def unpack_data(data):
-    map, path, ddy0 = data
+    map, path, task_map, ddy0 = data
     path = path[..., :3]
     p0 = path[:, 0]
     x0, y0, th0 = tf.unstack(p0, axis=-1)
     pk = path[:, -1]
     xk, yk, thk = tf.unstack(pk, axis=-1)
-    return map, path, x0, y0, th0, ddy0, xk, yk, thk
+    return map, task_map, path, x0, y0, th0, ddy0, xk, yk, thk
 
 
 class PlanningNetworkMP(tf.keras.Model):
@@ -136,11 +136,12 @@ class PlanningNetworkMP(tf.keras.Model):
         #self.last_ddy_est = EstimatorLayer(tf.identity)
 
     def call(self, data, map_features, training=None):
-        map, path, x0, y0, th0, ddy0, xk, yk, thk = unpack_data(data)
+        map, task_map, path, x0, y0, th0, ddy0, xk, yk, thk = unpack_data(data)
         last_ddy = ddy0
         W = 25.6
         H = 25.6
 
+        map = tf.concat([map, task_map], axis=-1)
         map_features = self.map_processing(map)
 
         parameters = []
@@ -183,7 +184,7 @@ def calculate_next_point(plan, xL, yL, thL, last_ddy):
 
 def plan_loss(plan, data, very_last_ddy):
     num_gpts = plan.shape[-1]
-    map, path, x0, y0, th0, ddy0, xk, yk, thk = unpack_data(data)
+    map, task_map, path, x0, y0, th0, ddy0, xk, yk, thk = unpack_data(data)
     xL = x0
     yL = y0
     thL = th0
@@ -236,7 +237,7 @@ def plan_loss(plan, data, very_last_ddy):
 
 def _plot(x_path, y_path, th_path, data, step, print=False):
     res = 0.2
-    free_space, path, ddy0 = data
+    free_space, path, _, ddy0 = data
     path = path[..., :3]
     plt.imshow(free_space[0,..., 0])
     for i in range(len(x_path)):
