@@ -9,89 +9,41 @@ from utils.crucial_points import calculate_car_crucial_points
 def planning_dataset(path):
     def read_scn(scn_path):
         scn_path = os.path.join(path, scn_path)
-        map_path = scn_path[:-4] + "png"
-        paths = []
-        task_imgs = []
-        # print(res_path)
-        with open(scn_path, 'r') as fh:
-            lines = fh.read().split('\n')[:-1]
-            for i, l in enumerate(lines):
-                xythk = np.array(l.split()).astype(np.float32)
-                xythk = np.reshape(xythk[1:], (-1, 4))
-                n_max = 256 + 128
-                # n_max = 512
-                if xythk.shape[0] > n_max:
-                    xythk = xythk[:n_max]
-                else:
-                    pad_l = n_max - xythk.shape[0]
-                    xythk = np.pad(xythk, ((0, pad_l), (0, 0)), mode='edge')
-                x0 = xythk[0, 0]
-                y0 = xythk[0, 1]
-                xk = xythk[-1, 0]
-                yk = xythk[-1, 1]
-                if np.sqrt((x0 - xk) ** 2 + (y0 - yk) ** 2) > 5:
-                    paths.append(xythk)
-        if paths:
-            paths = np.stack(paths, 0).astype(np.float32)
-        for p in paths:
-            img = np.zeros((128, 128), dtype=np.float32)
-            xyth0 = p[0, :3]
-            xythk = p[-1, :3]
-            x0 = xyth0[0]
-            y0 = xyth0[1]
-            xk = xythk[0]
-            yk = xythk[1]
-            dist = np.sqrt((x0 - xk) ** 2 + (y0 - yk) ** 2)
-            t = np.linspace(0., 1., int(dist / 0.2))[:, np.newaxis]
-            xyths = xyth0[np.newaxis] * (1 - t) + xythk[np.newaxis] * t
-            x, y, th = np.split(xyths, xyths.shape[-1], axis=-1)
-            cp = calculate_car_crucial_points(x, y, th)
-            contour = np.concatenate([cp[1], cp[3], cp[4], cp[2], cp[1]], axis=1)
-            res = 0.2
-            for c in contour:
-                u = 120 - c[:, 0] / res
-                v = 64 - c[:, 1] / res
-                rr, cc = polygon(u, v, img.shape)
-                img[rr, cc] = 1.
-            task_imgs.append(img)
+        task_map_path = scn_path[:-3] + "png"
+        map_path = scn_path[:-7] + ".png"
+        paths = np.load(scn_path)
+        n_max = 256 + 128
+        if paths.shape[0] > n_max:
+            paths = paths[:n_max]
+        else:
+            pad_l = n_max - paths.shape[0]
+            paths = np.pad(paths, ((0, pad_l), (0, 0)), mode='edge')
+        return map_path, paths, task_map_path
 
-        return map_path, paths, task_imgs
-
-    def read_map(map_path, path, task_imgs):
+    def read_map(map_path, path, task_map_path):
         img = tf.io.read_file(map_path)
         img = tf.io.decode_png(img, channels=1)
         img = tf.image.convert_image_dtype(img, tf.float32)
         free = img > 0.5
         obs = img < 0.5
         img = tf.cast(tf.concat([free, obs], axis=-1), tf.float32)
-        return img, path, task_imgs
+        task_img = tf.io.read_file(task_map_path)
+        task_img = tf.io.decode_png(task_img, channels=1)
+        task_img = tf.image.convert_image_dtype(task_img, tf.float32)
+        return img, path, task_img
 
-    scenarios = [read_scn(f) for f in sorted(os.listdir(path)) if f.endswith(".path")]
-    scenarios = [(scn_path, paths, task_imgs) for scn_path, paths, task_imgs in scenarios if len(paths)]
+    scenarios = [read_scn(f) for f in sorted(os.listdir(path)) if f.endswith(".npy")]
+    scenarios = [(map_path, paths, task_map_path) for map_path, paths, task_map_path in scenarios if len(paths)]
 
     g = list(range(len(scenarios)))
     shuffle(g)
 
     def gen():
         for i in g:
-            s = list(range(len(scenarios[i][1])))
-            shuffle(s)
-            for k in s:
-                # if random() > 0.5:
-                #    yield scenarios[i][0], scenarios[i][1][k]
-                # else:
-                #    a = scenarios[i][0].replace(".png", "_r.png")
-                #    path = scenarios[i][1][k]
-                #    x = path[:, 0]
-                #    y = -path[:, 1]
-                #    th = -path[:, 2]
-                #    beta = -path[:, 3]
-                #    b = tf.stack([x, y, th, beta], axis=-1)
-                #    yield a, b
-                yield scenarios[i][0], scenarios[i][1][k], scenarios[i][2][k]
+            yield scenarios[i]
 
-    ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32, tf.float32)) \
-        .shuffle(buffer_size=int(1 * len(scenarios)), reshuffle_each_iteration=True).map(read_map, num_parallel_calls=8)
+    ds = tf.data.Dataset.from_generator(gen, (tf.string, tf.float32, tf.string)) \
+        .shuffle(buffer_size=int(0.1 * len(scenarios)), reshuffle_each_iteration=True).map(read_map, num_parallel_calls=8)
 
     return ds, len(scenarios)
 

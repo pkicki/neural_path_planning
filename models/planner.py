@@ -116,7 +116,7 @@ class PlanningNetworkMP(tf.keras.Model):
     def call(self, data, map_features, training=None):
         map, path, task_map, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
 
-        map = tf.concat([map, task_map[..., tf.newaxis]], axis=-1)
+        map = tf.concat([map, task_map], axis=-1)
         map_features = self.map_processing(map)
 
         inputs = tf.stack([x0 / self.dim, y0 / (self.dim / 2), np.sin(th0), np.cos(th0), beta0,
