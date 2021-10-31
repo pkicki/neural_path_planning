@@ -21,8 +21,9 @@ tf.random.set_seed(444)
 
 if __name__ == '__main__':
     p = "../data/exemplary_paths/x/"
-    model_path = "./trained_models/best-23"
+    model_path = "./trained_models/monster/icra_sdf_tm/best-14"
     c = range(14)
+    sdf_path = [p + str(x) + "_sdf_free.png" for x in c]
     map_path = [p + str(x) + ".png" for x in c]
     as_path = ["accessible_sets/as_grid_" + str(x) + ".tsv" for x in c]
     fig, axes = plt.subplots(nrows=2, ncols=7, gridspec_kw={"hspace": 0.015, "wspace": 0.015})
@@ -40,7 +41,8 @@ if __name__ == '__main__':
             left=False,  # ticks along the top edge are off
             labelbottom=False,
             labelleft = False)
-        im = run_and_plot(model_path, map_path[i], as_path[i], xs[i], ys[i], ths[i], ax)
+        im = run_and_plot(model_path, map_path[i], sdf_path[i], None, xs[i], ys[i], ths[i], ax)
+        #im = run_and_plot(model_path, map_path[i], sdf_path[i], as_path[i], xs[i], ys[i], ths[i], ax)
     #ax = plt.gca()
     #i = 2
     #im = run_and_plot(model_path, map_path[i], as_path[i], xs[i], ys[i], ths[i], ax)

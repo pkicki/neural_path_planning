@@ -4,15 +4,13 @@ import tensorflow as tf
 import numpy as np
 
 from utils.execution import ExperimentHandler
+from utils.task_map import make_task_map
 
 
 def read_map(map_path):
     img = tf.io.read_file(map_path)
     img = tf.io.decode_png(img, channels=1)
     img = tf.image.convert_image_dtype(img, tf.float32)
-    free = img > 0.5
-    obs = img < 0.5
-    img = tf.cast(tf.concat([free, obs], axis=-1), tf.float32)
     return img
 
 
@@ -57,15 +55,16 @@ def _plot(x_path, y_path, th_path, ax):
     _plot_car(cp[-1, :, -1], ax, 'r')
 
 
-def run_and_plot(model_path, map_path, as_path, xd, yd, thd, ax):
-    bs = 128
+def run_and_plot(model_path, map_path, sdf_path, as_path, xd, yd, thd, ax):
+    #bs = 128
+    sdf = read_map(sdf_path)[tf.newaxis]
     map = read_map(map_path)[tf.newaxis]
     p0 = np.array([0.4, 0., 0., 0.], dtype=np.float32)[np.newaxis]
     pk = np.array([xd, yd, thd, 0.], dtype=np.float32)[np.newaxis]
     path = np.stack([p0, pk], axis=1)
-    ddy0 = np.array([0.], dtype=np.float32)
-    #data = (map, path, ddy0)
-    data = (map, path)
+    task_map = make_task_map(p0[0, :3], pk[0, :3])
+    task_map = task_map[np.newaxis, ..., np.newaxis]
+    data = (sdf, path, task_map)
 
     # 2. Define model
     N = 3

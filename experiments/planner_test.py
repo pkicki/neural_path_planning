@@ -11,7 +11,7 @@ sys.path.insert(0, parentdir)
 
 # add parent (root) to pythonpath
 from dataset import scenarios
-from models.planner import PlanningNetworkMP, Loss
+from models.planner import PlanningNetworkMP, Loss, _plot
 import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
@@ -45,7 +45,7 @@ def main():
     #model_path = "./trained_models/N=4_5e-4_nodistloss/best-32"
     #model_path = "./trained_models/N=5_5e-4_nodistloss/best-29"
     #model_path = "./trained_models/porthos/icra_task_map_1e-4_1/best-10"
-    model_path = "./trained_models/porthos/icra_task_map_1e-4/best-14"
+    model_path = "./trained_models/monster/icra_sdf_tm/best-14"
     ds_path = "../../data_new/test/all"
     # 1. Get datasets
     ds, ds_size = scenarios.planning_dataset(ds_path)
@@ -82,6 +82,11 @@ def main():
         max_curvs.append(np.max(np.abs(curvature), axis=-1))
         valid = tf.cast(tf.equal(invalid_loss + curvature_loss, 0.0), tf.float32)
         acc.append(valid)
+        if not valid:
+            _plot(x_path, y_path, th_path, data, i, cps, idx=0, print=False)
+
+        #if i > 50:
+        #    break
 
     epoch_accuracy = tf.reduce_mean(tf.concat(acc, -1))
     max_curvs = tf.concat(max_curvs, -1)
