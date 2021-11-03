@@ -1,10 +1,12 @@
 from models.planner import PlanningNetworkMP, Loss
-from utils.crucial_points import calculate_car_crucial_points
+from utils.constants import Car
+from utils.crucial_points import transform_points
 import tensorflow as tf
 import numpy as np
 
 from utils.execution import ExperimentHandler
 from utils.task_map import make_task_map
+from utils.utils import Rot
 
 
 def read_map(map_path):
@@ -39,16 +41,18 @@ def _plot(x_path, y_path, th_path, ax):
     x_path = tf.concat(x_path, 0)
     y_path = tf.concat(y_path, 0)
     th_path = tf.concat(th_path, 0)
-    path = tf.stack([x_path, y_path, th_path], axis=-1)
-    cp = calculate_car_crucial_points(x_path, y_path, th_path)
-    cp = tf.stack(cp, axis=1)
+    xy_path = tf.stack([x_path, y_path], axis=-1)
+    # TODO: may not work
+    cp = transform_points(xy_path, Rot(th_path), Car.crucial_points[np.newaxis])
     _plot_car(cp[0, :, 0], ax, 'g')
     cl = ['c', 'g', 'b', 'm', 'k']
-    for s in range(path.shape[0]):
+    for s in range(x_path.shape[0]):
         x = x_path[s]
         y = y_path[s]
         th = th_path[s]
-        cps = calculate_car_crucial_points(x, y, th)
+        # TODO: may not work
+        xy = np.stack([x, y], axis=-1)
+        cps = transform_points(xy, Rot(th), Car.crucial_points[np.newaxis])
         for j, p in enumerate(cps):
             x, y = transform_to_img(p[:, 0], p[:, 1])
             ax.plot(x, y, color=cl[j], zorder=4)

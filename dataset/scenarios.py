@@ -1,9 +1,7 @@
 import os
-from random import shuffle, random
+from random import shuffle
 import numpy as np
 import tensorflow as tf
-from skimage.draw import polygon
-from utils.crucial_points import calculate_car_crucial_points
 
 
 def planning_dataset(path):

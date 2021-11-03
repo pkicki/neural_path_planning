@@ -6,7 +6,7 @@ from time import time
 import numpy as np
 from matplotlib import pyplot as plt
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -37,9 +37,9 @@ def _ds(title, ds, ds_size, i, batch_size):
             yield (i, data)
             pbar.update(batch_size)
 
-#physical_devices = tf.config.experimental.list_physical_devices('GPU')
-#assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-#config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def main(args):
     # 1. Get datasets
