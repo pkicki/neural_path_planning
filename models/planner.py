@@ -76,11 +76,11 @@ class MapFeaturesProcessor(tf.keras.Model):
     def call(self, x, training=None):
         bs = x.shape[0]
         # CoordConv
-        #x_indices, y_indices = tf.meshgrid(2 * (tf.range(x.shape[1]) / (x.shape[1] - 1)) - 1,
+        # x_indices, y_indices = tf.meshgrid(2 * (tf.range(x.shape[1]) / (x.shape[1] - 1)) - 1,
         #                                     2 * (tf.range(x.shape[2]) / (x.shape[2] - 1)) - 1)
-        #xy_indices = tf.tile(tf.stack([x_indices , y_indices], axis=-1)[tf.newaxis], (bs, 1, 1, 1))
-        #xy_indices = tf.cast(xy_indices, tf.float32)
-        #x = tf.concat([x, xy_indices], axis=-1)
+        # xy_indices = tf.tile(tf.stack([x_indices , y_indices], axis=-1)[tf.newaxis], (bs, 1, 1, 1))
+        # xy_indices = tf.cast(xy_indices, tf.float32)
+        # x = tf.concat([x, xy_indices], axis=-1)
         for layer in self.features:
             x = layer(x)
         x = tf.reshape(x, (bs, -1))
@@ -110,7 +110,7 @@ class PlanningNetworkMP(tf.keras.Model):
 
         self.map_processing = MapFeaturesProcessor(n)
         self.preprocessing_stage = FeatureExtractorLayer(n)
-        self.pts_est = EstimatorLayer((2 ** self.depth - 1) * 2)
+        self.pts_est = EstimatorLayer((2 ** self.depth - 1) * 2 + 3)
         self.dim = 25.6
 
     def call(self, data, env_features, training=None):
@@ -126,32 +126,40 @@ class PlanningNetworkMP(tf.keras.Model):
         features = tf.concat([features, env_features], -1)
 
         p = self.pts_est(features, training)
-        pts = tf.reshape(p, (-1, 2 ** self.depth - 1, 2))
-        return self.calculate_control_points(data, pts), pts
+        pts = p[..., :-3]
+        x1x2r = p[..., -3:]
+        pts = tf.reshape(pts, (-1, 2 ** self.depth - 1, 2))
+        return self.calculate_control_points(data, pts, x1x2r), pts, p
 
-    def calculate_control_points(self, data, pts):
+    def calculate_control_points(self, data, pts, x1x2r):
         _, _, _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
         # move data to (0;1) and (-0.5; 0.5) for x and y respectively
+        x1x2r = (x1x2r + 1) / 2.
         x0 /= self.dim
         y0 /= self.dim / 2
         xk /= self.dim
         yk /= self.dim / 2
         kappa0 = 1 / Car.L * tf.tan(beta0)
-        x1 = x0 + 0.01
-        x2 = x1 + 0.01
+        # x1 = x0 + 0.03 * x1x2r[:, 0] + 1e-5
+        # x2 = x1 + 0.03 * x1x2r[:, 1] + 1e-5
+        x1 = x0 + 0.1 * x1x2r[:, 0] + 1e-5
+        x2 = x1 + 0.1 * x1x2r[:, 1] + 1e-5
         y1 = tf.zeros_like(x1)
-        #y2 = 3 * kappa0 * (x1 - x0) ** 2
-        y2 = kappa0 * (x1 - x0)**2 / ((self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
-        r = 0.015
+        # y2 = 3 * kappa0 * (x1 - x0) ** 2
+        y2 = kappa0 * (x1 - x0) ** 2 / (
+                    (self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
+        # r = 0.015
+        # r = 0.03 * x1x2r[:, 2] + 1e-5
+        r = 0.1 * x1x2r[:, 2] + 1e-5
         xkm1 = xk - r * tf.cos(thk)
-        ykm1 = yk - r * tf.sin(thk) * 2 # TODO: crazy shit!!!!!
+        ykm1 = yk - r * tf.sin(thk) * 2  # TODO: crazy shit!!!!!
         xy0 = tf.stack([x0, y0], axis=-1)[:, tf.newaxis]
         xy1 = tf.stack([x1, y1], axis=-1)[:, tf.newaxis]
         xy2 = tf.stack([x2, y2], axis=-1)[:, tf.newaxis]
         xykm1 = tf.stack([xkm1, ykm1], axis=-1)[:, tf.newaxis]
         xyk = tf.stack([xk, yk], axis=-1)[:, tf.newaxis]
 
-        #def middle(lb, ub, pred):
+        # def middle(lb, ub, pred):
         #    v = ub - lb
         #    v_p = tf.stack([-v[:, :, 1], v[:, :, 0]], axis=-1)
         #    p1 = (pred[..., :1] + 1) / 2
@@ -177,6 +185,7 @@ class PlanningNetworkMP(tf.keras.Model):
         cp = tf.concat([xy0, xy1] + f + [xyk], axis=1)
         return cp
 
+
 class DummyPlanner(tf.keras.Model):
     def __init__(self, first, depth):
         super(DummyPlanner, self).__init__()
@@ -188,24 +197,29 @@ class DummyPlanner(tf.keras.Model):
         self.m = self.n + self.n_pts
 
     def call(self, data):
-        return self.calculate_control_points(data, self.pts)
+        pts = self.pts[..., :-3]
+        x1x2r = self.pts[..., -3:]
+        pts = tf.reshape(pts, (-1, 2 ** self.depth - 1, 2))
+        return self.calculate_control_points(data, pts, x1x2r), pts
 
-    def calculate_control_points(self, data, pts):
+    def calculate_control_points(self, data, pts, x1x2r):
         _, _, _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        x1x2r = (x1x2r + 1) / 2.
         # move data to (0;1) and (-0.5; 0.5) for x and y respectively
         x0 /= self.dim
         y0 /= self.dim / 2
         xk /= self.dim
         yk /= self.dim / 2
         kappa0 = 1 / Car.L * tf.tan(beta0)
-        x1 = x0 + 0.01
-        x2 = x1 + 0.01
+        x1 = x0 + 0.1 * x1x2r[:, 0] + 1e-5
+        x2 = x1 + 0.1 * x1x2r[:, 1] + 1e-5
         y1 = tf.zeros_like(x1)
-        #y2 = 3 * kappa0 * (x1 - x0) ** 2
-        y2 = kappa0 * (x1 - x0)**2 / ((self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
-        r = 0.015
+        # y2 = 3 * kappa0 * (x1 - x0) ** 2
+        y2 = kappa0 * (x1 - x0) ** 2 / (
+                    (self.m - 2 * self.n) * self.n * self.n * (self.m - 2 * self.n) ** 2 * (self.n - 1) / 2)
+        r = 0.1 * x1x2r[:, 2] + 1e-5
         xkm1 = xk - r * tf.cos(thk)
-        ykm1 = yk - r * tf.sin(thk) * 2 # TODO: crazy shit!!!!!
+        ykm1 = yk - r * tf.sin(thk) * 2  # TODO: crazy shit!!!!!
         xy0 = tf.stack([x0, y0], axis=-1)[:, tf.newaxis]
         xy1 = tf.stack([x1, y1], axis=-1)[:, tf.newaxis]
         xy2 = tf.stack([x2, y2], axis=-1)[:, tf.newaxis]
@@ -315,8 +329,36 @@ class Loss:
         coarse_loss = invalid_loss + curvature_loss
         fine_loss = invalid_loss + curvature_loss + 1e-1 * tcurv
         loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
-        #loss = coarse_loss
+        # loss = coarse_loss
         return loss, invalid_loss, curvature_loss, dist_loss, tcurv, x_global, y_global, th_global, curvature
+
+    def curvature(self, plan):
+        x_plan = plan[:, :, 0] * self.dim
+        y_plan = plan[:, :, 1] * (self.dim / 2.)
+        plan_g = tf.stack([x_plan, y_plan], axis=-1)
+        xy = self.N @ plan_g
+        dxy = self.dN @ plan_g
+        ddxy = self.ddN @ plan_g
+        curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / \
+                    (tf.reduce_sum(tf.square(dxy), axis=-1) + 1e-8) ** (3. / 2)
+        curvature_loss = tf.reduce_sum(tf.nn.relu(tf.abs(curvature) - Car.max_curvature), -1)
+        x_global = xy[..., 0]
+        y_global = xy[..., 1]
+        th_global = tf.atan2(dxy[..., 1], dxy[..., 0])
+        return curvature_loss, x_global, y_global, th_global, curvature
+
+    def curvature_loss(self, plan):
+        plan = np.reshape(plan, (1, 12, 2))
+        x_plan = plan[:, :, 0] * self.dim
+        y_plan = plan[:, :, 1] * (self.dim / 2.)
+        plan_g = np.stack([x_plan, y_plan], axis=-1)
+        xy = self.N @ plan_g
+        dxy = self.dN @ plan_g
+        ddxy = self.ddN @ plan_g
+        curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / \
+                    (np.sum(tf.square(dxy), axis=-1) + 1e-8) ** (3. / 2)
+        curvature_loss = np.sum(np.maximum(tf.abs(curvature) - Car.max_curvature, 0.), -1)
+        return curvature_loss
 
 
 def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
