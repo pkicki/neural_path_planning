@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 from utils.constants import Car
-from utils.crucial_points import calculate_car_crucial_points, calculate_car_body, calculate_car_contour
+from utils.crucial_points import transform_points
 from utils.distances import dist, path_dist, if_inside, path_line_dist, path_dist_cp
 from utils.poly5 import curvature, params
 from utils.utils import _calculate_length, Rot
@@ -299,24 +299,15 @@ class Loss:
         curvature = (ddxy[..., 1] * dxy[..., 0] - ddxy[..., 0] * dxy[..., 1]) / \
                     (tf.reduce_sum(tf.square(dxy), axis=-1) + 1e-8) ** (3. / 2)
         tcurv = tf.reduce_sum(tf.abs(curvature[:, 1:] - curvature[:, :-1]), axis=-1)
-        # plt.plot(curvature.numpy()[0])
-        # plt.ylim(-5, 5)
-        # plt.show()
         curvature_loss = tf.reduce_sum(tf.nn.relu(tf.abs(curvature) - Car.max_curvature), -1)
         x_global = xy[..., 0]
         y_global = xy[..., 1]
         th_global = tf.atan2(dxy[..., 1], dxy[..., 0])
-        plan_g_dists = tf.reduce_sum(tf.abs(plan_g[:, 1:] - plan_g[:, :-1]), axis=-1)
-        overal_dist = tf.reduce_sum(plan_g_dists, axis=-1, keepdims=True)
-        dist_part = plan_g_dists / overal_dist
-        dist_loss = tf.reduce_sum(tf.nn.relu(dist_part - 0.1), axis=-1)
         invalid_loss, supervised_loss = invalidate(x_global, y_global, th_global, map, path)
-        # loss = invalid_loss + curvature_loss
         coarse_loss = invalid_loss + curvature_loss
         fine_loss = invalid_loss + curvature_loss + 1e-1 * tcurv
         loss = tf.where(coarse_loss == 0, fine_loss, coarse_loss)
-        #loss = coarse_loss
-        return loss, invalid_loss, curvature_loss, dist_loss, tcurv, x_global, y_global, th_global, curvature
+        return loss, invalid_loss, curvature_loss, curvature_loss, tcurv, x_global, y_global, th_global, curvature
 
 
 def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
@@ -327,7 +318,11 @@ def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
     x = x_path[idx]
     y = y_path[idx]
     th = th_path[idx]
-    cp = calculate_car_crucial_points(x, y, th)
+
+    cp = Car.crucial_points[np.newaxis]
+    R = Rot(th)
+    xy = np.stack([x, y], axis=-1)[:, np.newaxis]
+    cp = transform_points(xy, R, cp)
     for p in cp:
         u = -p[:, 1] / res + 64
         v = 120 - p[:, 0] / res
@@ -355,21 +350,22 @@ def invalidate(x, y, fi, free_space, path):
     """
         Check how much specified points violate the environment constraints
     """
-    crucial_points = calculate_car_crucial_points(x, y, fi)
-    car_contour = calculate_car_contour(crucial_points)
-    crucial_points = tf.stack(crucial_points, -2)
-    xy = tf.stack([x, y], axis=-1)[:, :, tf.newaxis]
+    cp = Car.crucial_points[np.newaxis, np.newaxis]
+    R = Rot(fi)
+    xy = np.stack([x, y], axis=-1)[:, :, np.newaxis]
+    crucial_points = transform_points(xy, R, cp)
+
+    car_contour = Car.contour[np.newaxis, np.newaxis]
+    car_contour = transform_points(xy, R, car_contour)
 
     d = tf.linalg.norm(xy[:, 1:] - xy[:, :-1], axis=-1)
 
-    path_cp = calculate_car_crucial_points(path[..., 0], path[..., 1], path[..., 2])
-    path_cp = tf.stack(path_cp, -2)
+    path_cp = transform_points(path[..., np.newaxis, :2], Rot(path[..., 2]), cp)
     penetration = path_dist_cp(path_cp, crucial_points)
     not_in_collision = if_inside(free_space, car_contour)
     not_in_collision = tf.reduce_all(not_in_collision, axis=-1)
     penetration = tf.where(not_in_collision, tf.zeros_like(penetration), penetration)
 
     violation_level = tf.reduce_sum(d[..., 0] * penetration[:, :-1], -1)
-
     supervised_loss = tf.reduce_sum(penetration, -1)
     return violation_level, supervised_loss

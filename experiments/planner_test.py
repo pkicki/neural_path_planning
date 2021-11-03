@@ -45,7 +45,9 @@ def main():
     #model_path = "./trained_models/N=4_5e-4_nodistloss/best-32"
     #model_path = "./trained_models/N=5_5e-4_nodistloss/best-29"
     #model_path = "./trained_models/porthos/icra_task_map_1e-4_1/best-10"
-    model_path = "./trained_models/porthos/icra_task_map_1e-4/best-14"
+    #model_path = "./trained_models/porthos/icra_task_map_1e-4/best-14"
+    model_path = "./trained_models/porthos/icra_task_map_1e-4_CPU/best-18"
+    #model_path = "./trained_models/aramis/icra_tm_N=4/best-26"
     ds_path = "../../data_new/test/all"
     # 1. Get datasets
     ds, ds_size = scenarios.planning_dataset(ds_path)
