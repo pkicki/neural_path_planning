@@ -21,4 +21,4 @@ class Car:
     back = back_left * tw + (1 - tw) * back_right
     left = front_left * tl + (1 - tl) * back_left
     right = front_right * tl + (1 - tl) * back_right
-    contour = np.concatenate([front, left, back, right], axis=0, dtype=np.float32)
+    contour = np.concatenate([front, left, back, right], axis=0).astype(np.float32)
