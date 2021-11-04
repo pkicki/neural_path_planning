@@ -365,6 +365,7 @@ def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
     R = Rot(th)
     xy = np.stack([x, y], axis=-1)[:, np.newaxis]
     cp = transform_points(xy, R, cp)
+    cp = np.transpose(cp, (1, 0, 2))
     for p in cp:
         u = -p[:, 1] / res + 64
         v = 120 - p[:, 0] / res
@@ -392,17 +393,17 @@ def invalidate(x, y, fi, free_space, path):
     """
         Check how much specified points violate the environment constraints
     """
-    cp = Car.crucial_points[np.newaxis, np.newaxis]
+    cp = Car.crucial_points[tf.newaxis, tf.newaxis]
     R = Rot(fi)
-    xy = np.stack([x, y], axis=-1)[:, :, np.newaxis]
+    xy = tf.stack([x, y], axis=-1)[:, :, tf.newaxis]
     crucial_points = transform_points(xy, R, cp)
 
-    car_contour = Car.contour[np.newaxis, np.newaxis]
+    car_contour = Car.contour[tf.newaxis, tf.newaxis]
     car_contour = transform_points(xy, R, car_contour)
 
     d = tf.linalg.norm(xy[:, 1:] - xy[:, :-1], axis=-1)
 
-    path_cp = transform_points(path[..., np.newaxis, :2], Rot(path[..., 2]), cp)
+    path_cp = transform_points(path[..., tf.newaxis, :2], Rot(path[..., 2]), cp)
     penetration = path_dist_cp(path_cp, crucial_points)
     not_in_collision = if_inside(free_space, car_contour)
     not_in_collision = tf.reduce_all(not_in_collision, axis=-1)

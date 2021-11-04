@@ -68,7 +68,8 @@ def main(args):
     best_accuracy = 0.0
     for epoch in range(args.num_epochs):
         # workaround for tf problems with shuffling
-        dataset_epoch = train_ds.shuffle(train_size)
+        dataset_epoch = train_ds.shuffle(10000)
+        #dataset_epoch = train_ds.shuffle(train_size)
         dataset_epoch = dataset_epoch.batch(args.batch_size).prefetch(args.batch_size)
 
         # 5.1. Training Loop
@@ -77,7 +78,7 @@ def main(args):
         for i, data in _ds('Train', dataset_epoch, train_size, epoch, args.batch_size):
             # 5.1.1. Make inference of the model, calculate losses and record gradients
             with tf.GradientTape(persistent=True) as tape:
-                output, pts = model(data, None, training=True)
+                output, pts, p = model(data, None, training=True)
                 model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(output, data)
             grads = tape.gradient(model_loss, model.trainable_variables)
             #for g in grads:
@@ -124,7 +125,7 @@ def main(args):
         acc = []
         for i, data in _ds('Validation', val_ds, val_size, epoch, args.batch_size):
             # 5.2.1 Make inference of the model for validation and calculate losses
-            output, pts = model(data, None, training=False)
+            output, pts, p = model(data, None, training=False)
             model_loss, invalid_loss, curvature_loss, overshoot_loss, total_curvature_loss, x_path, y_path, th_path, curvature = loss(output, data)
 
             t = tf.reduce_mean(tf.cast(tf.equal(invalid_loss, 0.0), tf.float32))

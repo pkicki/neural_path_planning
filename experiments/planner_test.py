@@ -4,7 +4,7 @@ import sys
 
 from utils.optimize import nelder_mead, tf_grad_dummy
 
-gpu = False
+gpu = True
 
 if not gpu:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -43,7 +43,7 @@ if gpu:
     config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def main():
-    bs = 1#28
+    bs = 128
     #model_path = "./trained_models/best-23"
     #model_path = "./trained_models/N=2_5e-4_nodistloss/best-16"
     #model_path = "./trained_models/N=3_5e-4_nodistloss/best-23"
