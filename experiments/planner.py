@@ -5,8 +5,12 @@ from time import time
 
 import numpy as np
 from matplotlib import pyplot as plt
+import tensorflow as tf
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -18,7 +22,6 @@ from models.planner import _plot, PlanningNetworkMP, Loss, unpack_data
 
 from argparse import ArgumentParser
 
-import tensorflow as tf
 from tqdm import tqdm
 
 from utils.execution import ExperimentHandler, LoadFromFile
@@ -36,10 +39,6 @@ def _ds(title, ds, ds_size, i, batch_size):
         for i, data in enumerate(ds):
             yield (i, data)
             pbar.update(batch_size)
-
-physical_devices = tf.config.experimental.list_physical_devices('GPU')
-assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def main(args):
     # 1. Get datasets
