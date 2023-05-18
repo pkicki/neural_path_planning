@@ -102,9 +102,10 @@ def main(args):
                 tf.summary.scalar('metrics/ideal_paths', s, step=train_step)
 
             # 5.1.5 Update meta variables
-            if train_step % 100 == 0:
+            if train_step % 25 == 0:
                 _plot(x_path, y_path, th_path, data, train_step, output)
-            #_plot(x_path, y_path, th_path, data, train_step, output)
+            #print("IL", invalid_loss)
+            #_plot(x_path, y_path, th_path, data, train_step, output, print=True)
             #if train_step > 100: assert False
             train_step += 1
         epoch_accuracy = tf.reduce_mean(tf.concat(acc, -1))

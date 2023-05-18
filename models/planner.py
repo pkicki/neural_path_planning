@@ -4,7 +4,8 @@ from time import time
 import tensorflow as tf
 import numpy as np
 
-from utils.constants import Car
+from utils.collisions import xy_to_local_map
+from utils.constants import Car, Map
 from utils.crucial_points import calculate_car_crucial_points, calculate_car_body, calculate_car_contour
 from utils.distances import dist, path_dist, if_inside, path_line_dist, path_dist_cp
 from utils.poly5 import curvature, params
@@ -86,10 +87,12 @@ class MapFeaturesProcessor(tf.keras.Model):
 def unpack_data(data):
     map, path = data
     p0 = path[:, 0]
-    x0, y0, th0, beta0 = tf.unstack(p0, axis=-1)
+    x0, y0, th0 = tf.unstack(p0, axis=-1)
     pk = path[:, -1]
-    xk, yk, thk, betak = tf.unstack(pk, axis=-1)
-    return map, path, x0, y0, th0, beta0, xk, yk, thk, betak
+    xk, yk, thk = tf.unstack(pk, axis=-1)
+    #beta0 = (2 * np.random.random() - 1.) * Car.max_steering_angle
+    beta0 = np.clip(np.random.normal(scale=Car.max_steering_angle, size=x0.shape), -Car.max_steering_angle, Car.max_steering_angle).astype(np.float32)
+    return map, path, x0, y0, th0, beta0, xk, yk, thk
 
 
 class PlanningNetworkMP(tf.keras.Model):
@@ -105,15 +108,17 @@ class PlanningNetworkMP(tf.keras.Model):
         self.map_processing = MapFeaturesProcessor(n)
         self.preprocessing_stage = FeatureExtractorLayer(n)
         self.pts_est = EstimatorLayer((2 ** self.depth - 1) * 2)
-        self.dim = 25.6
+        self.x_scale = Map.H * Map.scale
+        self.y_scale = Map.W * Map.scale / 2.
 
     def call(self, data, map_features, training=None):
-        map, path, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        map, path, x0, y0, th0, beta0, xk, yk, thk = unpack_data(data)
 
         map_features = self.map_processing(map)
 
-        inputs = tf.stack([x0 / self.dim, y0 / (self.dim / 2), np.sin(th0), np.cos(th0), beta0,
-                           xk / self.dim, yk / (self.dim / 2), np.sin(thk), np.cos(thk)], -1)
+        #inputs = tf.stack([x0 / self.dim, y0 / (self.dim / 2), np.sin(th0), np.cos(th0), beta0,
+        #                   xk / self.dim, yk / (self.dim / 2), np.sin(thk), np.cos(thk)], -1)
+        inputs = tf.stack([beta0, xk / self.x_scale, yk / self.y_scale, np.sin(thk), np.cos(thk)], -1)
 
         features = self.preprocessing_stage(inputs, training)
         features = tf.concat([features, map_features], -1)
@@ -123,12 +128,12 @@ class PlanningNetworkMP(tf.keras.Model):
         return self.calculate_control_points(data, pts), pts
 
     def calculate_control_points(self, data, pts):
-        _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        _, _, x0, y0, th0, beta0, xk, yk, thk = unpack_data(data)
         # move data to (0;1) and (-0.5; 0.5) for x and y respectively
-        x0 /= self.dim
-        y0 /= self.dim / 2
-        xk /= self.dim
-        yk /= self.dim / 2
+        x0 /= self.x_scale
+        y0 /= self.y_scale
+        xk /= self.x_scale
+        yk /= self.y_scale
         kappa0 = 1 / Car.L * tf.tan(beta0)
         x1 = x0 + 0.01
         x2 = x1 + 0.01
@@ -184,7 +189,7 @@ class DummyPlanner(tf.keras.Model):
         return self.calculate_control_points(data, self.pts)
 
     def calculate_control_points(self, data, pts):
-        _, _, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
+        _, _, x0, y0, th0, beta0, xk, yk, thk = unpack_data(data)
         # move data to (0;1) and (-0.5; 0.5) for x and y respectively
         x0 /= self.dim
         y0 /= self.dim / 2
@@ -230,7 +235,8 @@ class Loss:
         self.m = self.n + self.n_pts
         self.u = np.pad(np.linspace(0., 1., self.m + 1 - 2 * self.n), self.n, 'edge')
         self.N, self.dN, self.ddN = self.calculate_N()
-        self.dim = 25.6
+        self.x_scale = Map.H * Map.scale
+        self.y_scale = Map.W * Map.scale / 2.
 
     def calculate_N(self):
         def N(n, t, i):
@@ -282,9 +288,9 @@ class Loss:
         return Ns[np.newaxis], dNs[np.newaxis], ddNs[np.newaxis]
 
     def __call__(self, plan, data):
-        map, path, x0, y0, th0, beta0, xk, yk, thk, betak = unpack_data(data)
-        x_plan = plan[:, :, 0] * self.dim
-        y_plan = plan[:, :, 1] * (self.dim / 2.)
+        map, path, x0, y0, th0, beta0, xk, yk, thk = unpack_data(data)
+        x_plan = plan[:, :, 0] * self.x_scale
+        y_plan = plan[:, :, 1] * self.y_scale
         plan_g = tf.stack([x_plan, y_plan], axis=-1)
         xy = self.N @ plan_g
         dxy = self.dN @ plan_g
@@ -322,21 +328,21 @@ def _plot(x_path, y_path, th_path, data, step, cps, idx=0, print=False):
     th = th_path[idx]
     cp = calculate_car_crucial_points(x, y, th)
     for p in cp:
-        u = -p[:, 1] / res + 64
-        v = 120 - p[:, 0] / res
-        plt.plot(u, v)
+        cpx_map, cpy_map = xy_to_local_map(p[:, 0], p[:, 1])
+        plt.plot(cpy_map, cpx_map)
         # plt.plot(p[:, 0] * 10, (10. - p[:, 1]) * 10)
     # plt.plot(path[0, :, 0] * 10, (10 - path[0, :, 1]) * 10, 'r')
-    u = -path[idx, :, 1] / res + 64
-    v = 120 - path[idx, :, 0] / res
-    plt.plot(u, v, 'r')
-    cps_u = -cps[idx, :, 1] * 12.8 / res + 64
-    cps_v = 120 - cps[idx, :, 0] * 25.6 / res
+    px_map, py_map = xy_to_local_map(path[idx, :, 0], path[idx, :, 1])
+    plt.plot(py_map, px_map, 'r')
+    x_scale = Map.H * Map.scale
+    y_scale = Map.W * Map.scale / 2.
+    cps *= np.array([x_scale, y_scale])[np.newaxis, np.newaxis]
+    cpsx_map, cpsy_map = xy_to_local_map(cps[idx, :, 0], cps[idx, :, 1])
     # plt.plot(25.6 * cps[0, :, 0],  12.8 * cps[0, :, 1], 'bx')
-    plt.plot(cps_u, cps_v, 'bx')
+    plt.plot(cpsy_map, cpsx_map, 'bx')
     ax = plt.gca()
-    for i in range(len(cps_u)):
-        ax.annotate(str(i), (cps_u[i], cps_v[i]))
+    for i in range(len(cpsx_map)):
+        ax.annotate(str(i), (cpsy_map[i], cpsx_map[i]))
     if print:
         plt.show()
     else:
@@ -358,10 +364,14 @@ def invalidate(x, y, fi, free_space, path):
     path_cp = calculate_car_crucial_points(path[..., 0], path[..., 1], path[..., 2])
     path_cp = tf.stack(path_cp, -2)
     penetration = path_dist_cp(path_cp, crucial_points)
-    not_in_collision = if_inside(free_space, car_contour)
-    not_in_collision = tf.reduce_all(not_in_collision, axis=-1)
-    penetration = tf.where(not_in_collision, tf.zeros_like(penetration), penetration)
 
+    ccx_map, ccy_map = xy_to_local_map(car_contour[..., 0], car_contour[..., 1])
+    x_idx = np.clip(np.around(ccx_map).astype(np.int32), 0, Map.H - 1)
+    y_idx = np.clip(np.around(ccy_map).astype(np.int32), 0, Map.W - 1)
+    not_in_collision = free_space.numpy()[np.arange(x_idx.shape[0])[:, np.newaxis, np.newaxis], x_idx, y_idx, 0]
+    not_in_collision = tf.reduce_all(not_in_collision, axis=-1)
+
+    penetration = tf.where(not_in_collision, tf.zeros_like(penetration), penetration)
     violation_level = tf.reduce_sum(d[..., 0] * penetration[:, :-1], -1)
 
     supervised_loss = tf.reduce_sum(penetration, -1)

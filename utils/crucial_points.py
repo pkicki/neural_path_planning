@@ -1,6 +1,7 @@
 import tensorflow as tf
 from utils.constants import Car
 from utils.utils import Rot
+import numpy as np
 
 
 def calculate_car_crucial_points(x, y, fi):
