@@ -1,6 +1,6 @@
 # Learning from Experience for Rapid Generationof Local Car Maneuvers
 
-This repository contains code associated with the paper ["Learning from Experience for Rapid Generation of Local Car Maneuvers"](https://arxiv.org/abs/2012.03707).
+This repository contains code associated with the paper ["Learning from Experience for Rapid Generation of Local Car Maneuvers"](https://www.sciencedirect.com/science/article/pii/S0952197621002475) ([arXiv version](https://arxiv.org/abs/2012.03707)).
 
 ```
 Being able to rapidly respond to the changing scene and traffic situations by generating feasible local paths is of pivotal importance for car autonomy.
@@ -53,3 +53,19 @@ our approach outperforms the existing planners with respect to the number of suc
     - function `plan_loss` in `./models/planner.py`
 * `Dataset of urban environment local maps (based on real sensory data) and motion planning scenarios that can be used for training and evaluation of local planners for self-driving cars.`
     - data in `./data/`
+ 
+### Citation
+```
+@article{kicki2022neuralplanning,
+title = {Learning from experience for rapid generation of local car maneuvers},
+journal = {Engineering Applications of Artificial Intelligence},
+volume = {105},
+pages = {104399},
+year = {2021},
+issn = {0952-1976},
+doi = {https://doi.org/10.1016/j.engappai.2021.104399},
+url = {https://www.sciencedirect.com/science/article/pii/S0952197621002475},
+author = {Piotr Kicki and Tomasz Gawron and Krzysztof Ćwian and Mete Ozay and Piotr Skrzypczyński},
+keywords = {Motion planning, Neural networks, Robotics, Autonomous driving, Reinforcement learning, Autonomous vehicle navigation},
+}
+``` 
