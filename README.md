@@ -1,6 +1,6 @@
 # Speeding up DNN-based planning of local maneuvers via efficient B-spline path construction
 
-This repository contains code associated with the paper "Speeding up DNN-based planning of local maneuvers via efficient B-spline path construction".
+This repository contains code associated with the paper ["Speeding up DNN-based planning of local maneuvers via efficient B-spline path construction"](https://ieeexplore.ieee.org/document/9812313) ([arXiv version](https://arxiv.org/abs/2203.06963)).
 
 ```
 This paper demonstrates how an efficient representation of the planned
@@ -49,3 +49,15 @@ procedure outperforms state-of-the-art planners by a large margin in the conside
     ```bash
     python planner.py --config-file ./config_files/icra.conf
     ```
+## Cite
+```
+@INPROCEEDINGS{kicki2022neuralplanning,
+  author={Kicki, Piotr and Skrzypczyński, Piotr},
+  booktitle={2022 International Conference on Robotics and Automation (ICRA)}, 
+  title={Speeding up deep neural network-based planning of local car maneuvers via efficient B-spline path construction}, 
+  year={2022},
+  volume={},
+  number={},
+  pages={4422-4428},
+  doi={10.1109/ICRA46639.2022.9812313}}
+```
